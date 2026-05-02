@@ -3,6 +3,7 @@ import { createServer } from 'http';
 import { Server as SocketIOServer } from 'socket.io';
 import cors from 'cors';
 import { GameEngine } from './game/GameEngine';
+import { SocketManager } from './network/SocketManager';
 
 /**
  * Server configuration
@@ -42,9 +43,9 @@ const io = new SocketIOServer(httpServer, {
 const gameEngine = new GameEngine();
 
 /**
- * Connected players tracking
+ * Socket Manager instance - handles all Socket.IO events
  */
-const connectedPlayers = new Map<string, { socketId: string; name: string }>();
+const socketManager = new SocketManager(io, gameEngine);
 
 /**
  * Health check endpoint
@@ -53,167 +54,23 @@ app.get('/health', (req, res) => {
   res.json({
     status: 'ok',
     gameInProgress: gameEngine.isGameInProgress(),
-    connectedPlayers: connectedPlayers.size
+    connectedPlayers: socketManager.getPlayerCount()
   });
 });
 
 /**
- * Socket.IO connection handling
+ * Get server info endpoint (for LAN discovery)
  */
-io.on('connection', (socket) => {
-  console.log(`Client connected: ${socket.id}`);
-
-  /**
-   * Player joins the game
-   */
-  socket.on('join-game', (data: { playerName: string }) => {
-    const { playerName } = data;
-    
-    if (!playerName) {
-      socket.emit('error', { message: 'Player name is required' });
-      return;
-    }
-
-    // Add player to connected players
-    connectedPlayers.set(socket.id, {
-      socketId: socket.id,
-      name: playerName
-    });
-
-    console.log(`Player joined: ${playerName} (${socket.id})`);
-
-    // Notify all clients about player join
-    io.emit('player-joined', {
-      playerName,
-      totalPlayers: connectedPlayers.size
-    });
-
-    // Send current game state to the joining player
-    if (gameEngine.isGameInProgress()) {
-      const sanitizedState = gameEngine.getSanitizedState(socket.id);
-      socket.emit('game-state', sanitizedState);
-    }
-  });
-
-  /**
-   * Start game (when enough players have joined)
-   */
-  socket.on('start-game', () => {
-    if (connectedPlayers.size < 2) {
-      socket.emit('error', { message: 'Need at least 2 players to start' });
-      return;
-    }
-
-    if (connectedPlayers.size > 5) {
-      socket.emit('error', { message: 'Maximum 5 players allowed' });
-      return;
-    }
-
-    if (gameEngine.isGameInProgress()) {
-      socket.emit('error', { message: 'Game already in progress' });
-      return;
-    }
-
-    try {
-      // Get player names in order of connection
-      const playerNames = Array.from(connectedPlayers.values()).map(p => p.name);
-      
-      // Initialize game
-      gameEngine.initializeGame(playerNames);
-
-      console.log('Game started with players:', playerNames);
-
-      // Send initial game state to all players
-      for (const [socketId] of connectedPlayers) {
-        const sanitizedState = gameEngine.getSanitizedState(socketId);
-        io.to(socketId).emit('game-started', sanitizedState);
-      }
-    } catch (error) {
-      const errorMessage = error instanceof Error ? error.message : 'Failed to start game';
-      socket.emit('error', { message: errorMessage });
-      console.error('Error starting game:', error);
-    }
-  });
-
-  /**
-   * Player action (play card, end turn, etc.)
-   */
-  socket.on('player-action', (action: any) => {
-    if (!gameEngine.isGameInProgress()) {
-      socket.emit('error', { message: 'No game in progress' });
-      return;
-    }
-
-    try {
-      // Add socket ID as player ID
-      action.playerId = socket.id;
-
-      // Process action
-      const result = gameEngine.processAction(action);
-
-      if (result.success) {
-        // Broadcast updated state to all players
-        for (const [socketId] of connectedPlayers) {
-          const sanitizedState = gameEngine.getSanitizedState(socketId);
-          io.to(socketId).emit('game-state', sanitizedState);
-        }
-
-        // Send action result to the acting player
-        socket.emit('action-result', {
-          success: true,
-          message: result.message
-        });
-      } else {
-        // Send error to the acting player
-        socket.emit('action-result', {
-          success: false,
-          message: result.message,
-          error: result.error
-        });
-      }
-    } catch (error) {
-      const errorMessage = error instanceof Error ? error.message : 'Failed to process action';
-      socket.emit('error', { message: errorMessage });
-      console.error('Error processing action:', error);
-    }
-  });
-
-  /**
-   * Player disconnects
-   */
-  socket.on('disconnect', () => {
-    const player = connectedPlayers.get(socket.id);
-    
-    if (player) {
-      console.log(`Player disconnected: ${player.name} (${socket.id})`);
-      connectedPlayers.delete(socket.id);
-
-      // Notify other players
-      io.emit('player-left', {
-        playerName: player.name,
-        totalPlayers: connectedPlayers.size
-      });
-
-      // If game was in progress, handle disconnection
-      if (gameEngine.isGameInProgress()) {
-        // TODO: Implement game pause/forfeit logic in Phase 3
-        console.log('Game interrupted by player disconnect');
-      }
-    }
-  });
-
-  /**
-   * Get current game state
-   */
-  socket.on('get-game-state', () => {
-    if (gameEngine.isGameInProgress()) {
-      const sanitizedState = gameEngine.getSanitizedState(socket.id);
-      socket.emit('game-state', sanitizedState);
-    } else {
-      socket.emit('game-state', null);
-    }
+app.get('/info', (req, res) => {
+  res.json({
+    serverName: 'Monopoly Deal Server',
+    version: '1.0.0',
+    maxPlayers: 5,
+    currentPlayers: socketManager.getPlayerCount()
   });
 });
+
+// Note: All Socket.IO event handling is now managed by SocketManager
 
 /**
  * Start server

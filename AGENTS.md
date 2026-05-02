@@ -26,3 +26,10 @@ This file provides guidance to agents when working with code in this repository.
 - **Win condition check**: Called in [`TurnManager.endTurn()`](server/src/game/TurnManager.ts:52) BEFORE advancing to next player
 - **Property counting**: [`WinCondition`](server/src/game/WinCondition.ts:43) filters out houses/hotels when counting set completion
 - **AWAITING_DISCARD phase**: Added in Phase 3 - triggers when hand exceeds 7 cards at turn end
+
+## Networking Architecture (Phase 4)
+- **State sanitization**: [`StateSanitizer`](server/src/network/StateSanitizer.ts:19) hides opponent hands, draw pile sequence, and full discard pile
+- **myHand field**: Sanitized state includes `myHand` field ONLY for requesting player (not in player objects)
+- **Reconnection window**: 30-second timeout before removing disconnected players (in [`SocketManager`](server/src/network/SocketManager.ts:34))
+- **Event routing**: All Socket.IO logic delegated to [`SocketManager`](server/src/network/SocketManager.ts:29), not in server/src/index.ts
+- **State broadcasting**: Automatic after every action - no manual broadcast calls needed in GameEngine
