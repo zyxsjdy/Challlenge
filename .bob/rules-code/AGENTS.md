@@ -60,6 +60,14 @@
 - Rent calculation includes House (+$3M) and Hotel (+$4M) bonuses via `calculateRent()` helper
 - Wild rent cards require `targetPlayerId` in placement data (targets ONE opponent, not all)
 
+### Client UI Architecture (Phase 6)
+- [`SocketService`](../../client/src/services/socketService.ts:21) is a singleton - do NOT instantiate multiple times
+- [`GameContext`](../../client/src/contexts/GameContext.tsx:1) is single source of truth - all components use `useGame()` hook
+- Drag data MUST include both `cardId` and `cardCategory` for drop zone validation to work
+- Modal state managed in GameContext, triggered by server events (not component local state)
+- Server URL hardcoded in [`App.tsx`](../../client/src/App.tsx:1) - must change for production
+- Drop zones validate card category before accepting drops (bank vs property areas)
+
 ## Mode Restrictions
 - **Cannot edit**: Files outside of server/, client/, shared/ directories
 - **No access to**: MCP tools, Browser tools

@@ -23,13 +23,13 @@
 - Action/Rent cards → Discard pile after use (one-time effects)
 - Dual-use cards require UI decision before routing
 
-### Phase Dependencies
-- Phase 1 (COMPLETED): OOP contracts in [`shared/types.ts`](../../shared/src/types.ts:1)
-- Phase 2 depends on: CSV parser that stops at row 106 (not 996)
-- Phase 3 depends on: Turn constraint enforcement (draw 2/5, play 3, discard to 7)
-- Phase 4 depends on: State sanitization logic per player
-- Phase 5 depends on: Async pause states for targeting and reactions
-- Phase 6 depends on: Socket.IO event emission from UI interactions
+### Phase Dependencies (ALL COMPLETED)
+- Phase 1 ✅: OOP contracts in [`shared/types.ts`](../../shared/src/types.ts:1)
+- Phase 2 ✅: CSV parser that stops at row 106, CardFactory, GameEngine bootstrap
+- Phase 3 ✅: Turn constraint enforcement (draw 2/5, play 3, discard to 7), win condition
+- Phase 4 ✅: State sanitization logic per player, Socket.IO networking
+- Phase 5 ✅: All 10 action card types, payment resolution, Just Say No chains
+- Phase 6 ✅: React UI with drag-and-drop, modals, real-time state sync
 
 ### Non-Standard Game Flow
 - Empty hand at turn start triggers draw 5 (not standard draw 2)
