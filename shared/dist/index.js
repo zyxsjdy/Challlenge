@@ -24,4 +24,6 @@ __exportStar(require("./enums"), exports);
 __exportStar(require("./types"), exports);
 // Export all constants
 __exportStar(require("./constants"), exports);
+// Export all event definitions
+__exportStar(require("./events"), exports);
 // Made with Bob

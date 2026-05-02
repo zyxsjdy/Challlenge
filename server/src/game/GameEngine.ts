@@ -442,6 +442,79 @@ export class GameEngine {
       newState: this.gameState
     };
   }
+
+  /**
+   * Discard cards from player's hand
+   * Used when hand exceeds 7 cards at turn end
+   */
+  discardCards(playerId: string, cardIds: string[]): ActionResult {
+    const player = this.gameState.players.find(p => p.id === playerId);
+    
+    if (!player) {
+      return {
+        success: false,
+        message: 'Player not found',
+        error: 'PLAYER_NOT_FOUND'
+      };
+    }
+
+    // Validate it's the discard phase
+    if (this.gameState.phase !== GamePhase.AWAITING_DISCARD) {
+      return {
+        success: false,
+        message: 'Not in discard phase',
+        error: 'INVALID_PHASE'
+      };
+    }
+
+    // Validate player needs to discard
+    const excessCards = player.hand.length - 7;
+    if (excessCards <= 0) {
+      return {
+        success: false,
+        message: 'No need to discard',
+        error: 'NO_EXCESS_CARDS'
+      };
+    }
+
+    // Validate correct number of cards to discard
+    if (cardIds.length !== excessCards) {
+      return {
+        success: false,
+        message: `Must discard exactly ${excessCards} cards`,
+        error: 'INVALID_DISCARD_COUNT'
+      };
+    }
+
+    // Discard the cards
+    for (const cardId of cardIds) {
+      const card = player.removeFromHand(cardId);
+      if (!card) {
+        return {
+          success: false,
+          message: `Card ${cardId} not found in hand`,
+          error: 'CARD_NOT_FOUND'
+        };
+      }
+      this.gameState.discardPile.push(card);
+    }
+
+    // Move to next player's turn
+    this.gameState.phase = GamePhase.PLAYING;
+    this.gameState.currentPlayerIndex =
+      (this.gameState.currentPlayerIndex + 1) % this.gameState.players.length;
+    
+    // Start next player's turn
+    this.turnManager.startTurn(this.gameState);
+
+    console.log(`${player.name} discarded ${cardIds.length} cards`);
+
+    return {
+      success: true,
+      message: 'Cards discarded successfully',
+      newState: this.gameState
+    };
+  }
 }
 
 // Made with Bob

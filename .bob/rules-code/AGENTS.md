@@ -40,6 +40,14 @@
 - AWAITING_DISCARD phase triggers when hand > 7 at turn end - must discard before turn advances
 - Empty hand draw (5 cards) vs normal draw (2 cards) determined in [`TurnManager.startTurn()`](../../server/src/game/TurnManager.ts:15)
 
+### Networking Architecture (Phase 4)
+- [`StateSanitizer.sanitizeForPlayer()`](../../server/src/network/StateSanitizer.ts:19) creates player-specific views - opponent hands hidden, only counts visible
+- `myHand` field in sanitized state is ONLY for requesting player (not in player objects array)
+- [`SocketManager`](../../server/src/network/SocketManager.ts:29) handles ALL Socket.IO events - server/src/index.ts only initializes it
+- State broadcasting is automatic after actions - GameEngine does NOT call broadcast methods
+- Reconnection logic: 30-second timeout in [`SocketManager`](../../server/src/network/SocketManager.ts:34) before removing disconnected players
+- Draw pile sequence hidden (count only), discard pile shows top card only
+
 ## Mode Restrictions
 - **Cannot edit**: Files outside of server/, client/, shared/ directories
 - **No access to**: MCP tools, Browser tools
