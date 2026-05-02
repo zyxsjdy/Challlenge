@@ -33,3 +33,12 @@ This file provides guidance to agents when working with code in this repository.
 - **Reconnection window**: 30-second timeout before removing disconnected players (in [`SocketManager`](server/src/network/SocketManager.ts:34))
 - **Event routing**: All Socket.IO logic delegated to [`SocketManager`](server/src/network/SocketManager.ts:29), not in server/src/index.ts
 - **State broadcasting**: Automatic after every action - no manual broadcast calls needed in GameEngine
+
+## Action Card System (Phase 5)
+- **Just Say No**: Cannot be played directly, only as reaction; does NOT count toward 3-card play limit
+- **Payment routing**: Properties used as payment go to recipient's property area (not bank) via `addCardToRecipient()`
+- **10-Color Wildcard**: `canBeUsedForPayment()` returns false (value is 0)
+- **Reaction chains**: Flip initiator/target roles for counter-counter mechanics
+- **Multi-target actions**: Birthday uses `remainingTargets` array in pendingAction for sequential processing
+- **House/Hotel tracking**: Uses `(card as any).hasHouse` - not formalized in PropertyCard type yet
+- **Wild rent targeting**: Requires `targetPlayerId` in placement data (targets ONE opponent, not all)
