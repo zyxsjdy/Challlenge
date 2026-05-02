@@ -365,14 +365,21 @@ class GameState {
      */
     sanitizeForPlayer(playerId) {
         return {
-            players: this.players.map(p => ({
-                id: p.id,
-                name: p.name,
-                handCount: p.hand.length,
-                bank: p.bank,
-                properties: p.properties,
-                completedSets: p.completedSets
-            })),
+            players: this.players.map(p => {
+                // Convert Map to plain object for JSON serialization
+                const propertiesObj = {};
+                p.properties.forEach((cards, color) => {
+                    propertiesObj[color] = cards;
+                });
+                return {
+                    id: p.id,
+                    name: p.name,
+                    handCount: p.hand.length,
+                    bank: p.bank,
+                    properties: propertiesObj,
+                    completedSets: p.completedSets
+                };
+            }),
             currentPlayerId: this.players[this.currentPlayerIndex].id,
             phase: this.phase,
             turnPlayCount: this.turnPlayCount,

@@ -17,6 +17,8 @@ import {
   ErrorPayload,
   PlayerDisconnectedPayload,
   PlayerReconnectedPayload,
+  ActionRequiresTargetPayload,
+  ReactionPromptPayload,
 } from 'shared';
 
 /**
@@ -31,6 +33,7 @@ export class SocketManager {
   private gameEngine: GameEngine;
   private playerSockets: Map<string, Socket>; // playerId -> socket
   private socketToPlayer: Map<string, string>; // socket.id -> playerId
+  private playerNames: Map<string, string>; // playerId -> playerName
   private disconnectedPlayers: Map<string, NodeJS.Timeout>; // playerId -> timeout
 
   constructor(io: Server, gameEngine: GameEngine) {
@@ -38,6 +41,7 @@ export class SocketManager {
     this.gameEngine = gameEngine;
     this.playerSockets = new Map();
     this.socketToPlayer = new Map();
+    this.playerNames = new Map();
     this.disconnectedPlayers = new Map();
     this.setupEventHandlers();
   }
@@ -50,11 +54,15 @@ export class SocketManager {
       console.log(`Client connected: ${socket.id}`);
 
       // Register event handlers for this socket
-      socket.on(ClientEvents.JOIN_GAME, (data: JoinGamePayload) => 
+      socket.on(ClientEvents.JOIN_GAME, (data: JoinGamePayload) =>
         this.handleJoinGame(socket, data)
       );
 
-      socket.on(ClientEvents.PLAY_CARD, (data: PlayCardPayload) => 
+      socket.on(ClientEvents.START_GAME, () =>
+        this.handleStartGame(socket)
+      );
+
+      socket.on(ClientEvents.PLAY_CARD, (data: PlayCardPayload) =>
         this.handlePlayCard(socket, data)
       );
 
@@ -103,9 +111,10 @@ export class SocketManager {
       // Use socket.id as player ID
       const playerId = socket.id;
 
-      // Store socket mapping
+      // Store socket mapping and player name
       this.playerSockets.set(playerId, socket);
       this.socketToPlayer.set(socket.id, playerId);
+      this.playerNames.set(playerId, playerName);
 
       // Check if this is a reconnection
       if (this.disconnectedPlayers.has(playerId)) {
@@ -120,25 +129,70 @@ export class SocketManager {
         this.io.emit(ServerEvents.PLAYER_RECONNECTED, payload);
         
         console.log(`Player reconnected: ${playerName} (${playerId})`);
+        
+        // Broadcast game state for reconnection (game already initialized)
+        this.broadcastGameState();
       } else {
-        // New player joining
+        // New player joining lobby
         console.log(`Player joined: ${playerName} (${playerId})`);
+        
+        // Send join confirmation to all players
+        const joinPayload: PlayerJoinedPayload = {
+          playerId,
+          playerName,
+          playerCount: this.playerSockets.size,
+        };
+        this.io.emit(ServerEvents.PLAYER_JOINED, joinPayload);
+        
+        // If game is already in progress, send current state to new player
+        if (this.gameEngine.isGameInProgress()) {
+          this.broadcastGameState();
+        }
       }
-
-      // Broadcast updated game state to all players
-      this.broadcastGameState();
-
-      // Send join confirmation
-      const joinPayload: PlayerJoinedPayload = {
-        playerId,
-        playerName,
-        playerCount: this.playerSockets.size,
-      };
-      this.io.emit(ServerEvents.PLAYER_JOINED, joinPayload);
 
     } catch (error) {
       console.error('Error handling join game:', error);
       this.sendError(socket, 'Failed to join game');
+    }
+  }
+
+  /**
+   * Handle starting the game
+   */
+  private handleStartGame(socket: Socket): void {
+    try {
+      const playerId = this.socketToPlayer.get(socket.id);
+      
+      if (!playerId) {
+        this.sendError(socket, 'Player not found');
+        return;
+      }
+
+      // Check if game can be started (minimum 2 players)
+      if (this.playerSockets.size < 2) {
+        this.sendError(socket, 'Need at least 2 players to start');
+        return;
+      }
+
+      // Check if game already started
+      if (this.gameEngine.isGameInProgress()) {
+        this.sendError(socket, 'Game already in progress');
+        return;
+      }
+
+      // Initialize game with all connected player IDs and names
+      const playerIds = Array.from(this.playerSockets.keys());
+      const playerNamesList = playerIds.map(id => this.playerNames.get(id) || 'Unknown');
+      this.gameEngine.initializeGame(playerIds, playerNamesList);
+
+      console.log(`Game started by ${playerId} with ${playerIds.length} players`);
+
+      // Broadcast updated game state to all players
+      this.broadcastGameState();
+
+    } catch (error) {
+      console.error('Error starting game:', error);
+      this.sendError(socket, 'Failed to start game');
     }
   }
 
@@ -219,9 +273,27 @@ export class SocketManager {
     }
 
     try {
-      // This will be implemented in Phase 5 with action card handlers
       console.log(`Target selected by ${playerId}:`, data);
-      this.sendError(socket, 'Target selection not yet implemented');
+      
+      // Complete the target selection in game engine
+      const result = this.gameEngine.completeTargetSelection(
+        data.targetPlayerId,
+        {
+          propertyColor: data.propertyColor,
+          propertyCardId: data.propertyCardId,
+          myPropertyCardId: data.myPropertyCardId,
+          theirPropertyCardId: data.theirPropertyCardId
+        }
+      );
+
+      if (!result.success) {
+        this.sendError(socket, result.message);
+        return;
+      }
+
+      // Broadcast updated state to all players
+      this.broadcastGameState();
+
     } catch (error) {
       console.error('Error handling target selection:', error);
       this.sendError(socket, 'Failed to select target');
@@ -364,6 +436,45 @@ export class SocketManager {
   public broadcastGameState(): void {
     const gameState = this.gameEngine.getGameState();
 
+    // Check if we need to emit special events based on game phase
+    if (gameState.phase === 'AWAITING_TARGET' && gameState.pendingAction) {
+      // Emit ACTION_REQUIRES_TARGET event to the initiator
+      const initiatorSocket = this.playerSockets.get(gameState.pendingAction.initiatorId);
+      if (initiatorSocket) {
+        const opponents = gameState.players.filter(p => p.id !== gameState.pendingAction!.initiatorId);
+        const payload: ActionRequiresTargetPayload = {
+          actionType: gameState.pendingAction.actionType || 'UNKNOWN',
+          validTargets: opponents.map(p => p.id),
+          requiresPropertySelection: false // Can be enhanced later for property-specific actions
+        };
+        initiatorSocket.emit(ServerEvents.ACTION_REQUIRES_TARGET, payload);
+        console.log(`Emitted ACTION_REQUIRES_TARGET to ${gameState.pendingAction.initiatorId}`);
+      }
+    }
+
+    // Check if we need to emit REACTION_PROMPT for AWAITING_REACTION phase
+    if (gameState.phase === 'AWAITING_REACTION' && gameState.pendingAction) {
+      const targetSocket = this.playerSockets.get(gameState.pendingAction.targetId!);
+      if (targetSocket) {
+        // Check if target has Just Say No card
+        const targetPlayer = gameState.players.find(p => p.id === gameState.pendingAction!.targetId);
+        const hasJustSayNo = targetPlayer?.hand.some(card =>
+          card.category === 'ACTION' && (card as any).actionType === 'JUST_SAY_NO'
+        ) || false;
+
+        const payload: ReactionPromptPayload = {
+          actionType: gameState.pendingAction.actionType || 'PAYMENT',
+          initiatorId: gameState.pendingAction.initiatorId,
+          targetId: gameState.pendingAction.targetId!,
+          canCounter: hasJustSayNo,
+          timeoutSeconds: 30
+        };
+        targetSocket.emit(ServerEvents.REACTION_PROMPT, payload);
+        console.log(`Emitted REACTION_PROMPT to ${gameState.pendingAction.targetId}`);
+      }
+    }
+
+    // Broadcast sanitized state to all players
     for (const [playerId, socket] of this.playerSockets) {
       const sanitizedState = StateSanitizer.sanitizeForPlayer(gameState, playerId);
       

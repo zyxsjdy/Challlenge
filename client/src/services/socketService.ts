@@ -9,7 +9,9 @@ import {
   SelectTargetPayload,
   SelectPaymentPayload,
   ReactToActionPayload,
-  DiscardCardsPayload
+  DiscardCardsPayload,
+  PlayerJoinedPayload,
+  GameStateUpdatePayload
 } from 'shared/events';
 
 type GameStateCallback = (state: SanitizedGameState) => void;
@@ -17,16 +19,22 @@ type ActionRequiresTargetCallback = (data: ActionRequiresTargetPayload) => void;
 type PaymentRequiredCallback = (data: PaymentRequiredPayload) => void;
 type ReactionPromptCallback = (data: ReactionPromptPayload) => void;
 type ErrorCallback = (error: string) => void;
+type ConnectCallback = () => void;
+type PlayerJoinedCallback = (data: PlayerJoinedPayload) => void;
 
 class SocketService {
   private socket: Socket | null = null;
   private listeners: {
+    connect: ConnectCallback[];
+    playerJoined: PlayerJoinedCallback[];
     gameStateUpdate: GameStateCallback[];
     actionRequiresTarget: ActionRequiresTargetCallback[];
     paymentRequired: PaymentRequiredCallback[];
     reactionPrompt: ReactionPromptCallback[];
     error: ErrorCallback[];
   } = {
+    connect: [],
+    playerJoined: [],
     gameStateUpdate: [],
     actionRequiresTarget: [],
     paymentRequired: [],
@@ -62,15 +70,21 @@ class SocketService {
 
     this.socket.on('connect', () => {
       console.log('Connected to server:', this.socket?.id);
+      this.listeners.connect.forEach(cb => cb());
     });
 
     this.socket.on('disconnect', (reason) => {
       console.log('Disconnected from server:', reason);
     });
 
-    this.socket.on('game_state_update', (state: SanitizedGameState) => {
-      console.log('Game state update received:', state);
-      this.listeners.gameStateUpdate.forEach(cb => cb(state));
+    this.socket.on('player_joined', (data: PlayerJoinedPayload) => {
+      console.log('Player joined:', data);
+      this.listeners.playerJoined.forEach(cb => cb(data));
+    });
+
+    this.socket.on('game_state_update', (payload: GameStateUpdatePayload) => {
+      console.log('Game state update received:', payload);
+      this.listeners.gameStateUpdate.forEach(cb => cb(payload.state));
     });
 
     this.socket.on('action_requires_target', (data: ActionRequiresTargetPayload) => {
@@ -88,13 +102,29 @@ class SocketService {
       this.listeners.reactionPrompt.forEach(cb => cb(data));
     });
 
-    this.socket.on('error', (error: string) => {
-      console.error('Server error:', error);
-      this.listeners.error.forEach(cb => cb(error));
+    this.socket.on('error', (error: string | { message: string }) => {
+      // Handle both string errors and error objects
+      const errorMessage = typeof error === 'string' ? error : error.message;
+      console.error('Server error:', errorMessage);
+      this.listeners.error.forEach(cb => cb(errorMessage));
     });
   }
 
   // Event listener registration
+  onConnect(callback: ConnectCallback): () => void {
+    this.listeners.connect.push(callback);
+    return () => {
+      this.listeners.connect = this.listeners.connect.filter(cb => cb !== callback);
+    };
+  }
+
+  onPlayerJoined(callback: PlayerJoinedCallback): () => void {
+    this.listeners.playerJoined.push(callback);
+    return () => {
+      this.listeners.playerJoined = this.listeners.playerJoined.filter(cb => cb !== callback);
+    };
+  }
+
   onGameStateUpdate(callback: GameStateCallback): () => void {
     this.listeners.gameStateUpdate.push(callback);
     return () => {

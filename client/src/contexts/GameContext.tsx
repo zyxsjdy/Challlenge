@@ -1,11 +1,13 @@
 import React, { createContext, useContext, useEffect, useState, ReactNode } from 'react';
 import { SanitizedGameState, Card } from 'shared/types';
-import { 
+import {
   ActionRequiresTargetPayload,
   PaymentRequiredPayload,
-  ReactionPromptPayload
+  ReactionPromptPayload,
+  PlayerJoinedPayload
 } from 'shared/events';
 import { socketService } from '../services/socketService';
+import { PropertyColor, GamePhase } from 'shared/enums';
 
 interface GameContextType {
   gameState: SanitizedGameState | null;
@@ -77,15 +79,62 @@ export const GameProvider: React.FC<GameProviderProps> = ({
     socketService.connect(serverUrl);
     
     // Setup event listeners
-    const unsubscribeState = socketService.onGameStateUpdate((state) => {
-      setGameState(state);
+    const unsubscribeConnect = socketService.onConnect(() => {
       setIsConnected(true);
       
-      // Set player ID from socket
+      // Set player ID from socket (will be updated when game state arrives)
       const socketId = socketService.getSocketId();
       if (socketId) {
+        console.log('Setting playerId from socket:', socketId);
         setPlayerId(socketId);
       }
+    });
+    
+    const unsubscribePlayerJoined = socketService.onPlayerJoined((data: PlayerJoinedPayload) => {
+      // Also set playerId if this is our join event
+      const socketId = socketService.getSocketId();
+      if (socketId === data.playerId) {
+        console.log('Setting playerId from player joined event:', socketId);
+        setPlayerId(socketId);
+      }
+      
+      // Build lobby state from player joined events
+      setGameState(prevState => {
+        // If we already have a real game state, don't override it
+        if (prevState && prevState.phase !== 'WAITING_FOR_PLAYERS') {
+          return prevState;
+        }
+        
+        // Build or update lobby state
+        const existingPlayers = prevState?.players || [];
+        const playerExists = existingPlayers.some(p => p.id === data.playerId);
+        
+        const updatedPlayers = playerExists
+          ? existingPlayers
+          : [...existingPlayers, {
+              id: data.playerId,
+              name: data.playerName,
+              handCount: 0,
+              bank: [],
+              properties: {} as Record<PropertyColor, Card[]>,
+              completedSets: []
+            }];
+        
+        return {
+          players: updatedPlayers,
+          currentPlayerId: null,
+          phase: GamePhase.WAITING_FOR_PLAYERS,
+          turnPlayCount: 0,
+          drawPileCount: 0,
+          discardPileTop: null,
+          pendingAction: null,
+          winner: null
+        };
+      });
+    });
+    
+    const unsubscribeState = socketService.onGameStateUpdate((state) => {
+      setGameState(state);
     });
     
     const unsubscribeTarget = socketService.onActionRequiresTarget((data) => {
@@ -106,6 +155,8 @@ export const GameProvider: React.FC<GameProviderProps> = ({
     
     // Cleanup
     return () => {
+      unsubscribeConnect();
+      unsubscribePlayerJoined();
       unsubscribeState();
       unsubscribeTarget();
       unsubscribePayment();
