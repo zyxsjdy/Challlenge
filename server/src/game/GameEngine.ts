@@ -366,14 +366,14 @@ export class GameEngine {
         // Bank the action card (loses action ability)
         this.routeToBank(player, card);
       } else {
-        // Execute action - handler is responsible for discarding
+        // Execute action (placeholder for Phase 5)
         this.executeAction(player, card, placement);
-        // Note: Action handlers discard the card themselves
+        this.routeToDiscard(card);
       }
     } else if (card.category === CardCategory.RENT) {
-      // Execute rent - handler is responsible for discarding
+      // Execute rent (placeholder for Phase 5)
       this.executeRent(player, card, placement);
-      // Note: Rent handlers discard the card themselves
+      this.routeToDiscard(card);
     }
 
     // Increment play count (unless it's Just Say No or wildcard color change)
