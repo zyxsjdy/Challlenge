@@ -3,7 +3,7 @@
 ## Architectural Constraints
 
 ### Authoritative Server Pattern
-- Server holds single source of truth (GameState) - clients are thin display layers only
+- Server holds single source of truth ([`GameState`](../../shared/src/types.ts:1)) - clients are thin display layers only
 - All game logic validation happens server-side - clients cannot modify state directly
 - State sanitization required: server strips opponent hands and draw pile before broadcasting
 
@@ -14,17 +14,17 @@
 
 ### Interrupt-Driven Event Loop
 - Game must pause execution for async user inputs (targeting, payment selection, reactions)
-- State machine transitions: PLAYING → AWAITING_TARGET → AWAITING_PAYMENT → AWAITING_REACTION
+- State machine transitions: [`PLAYING`](../../shared/src/enums.ts:6) → [`AWAITING_TARGET`](../../shared/src/enums.ts:7) → [`AWAITING_PAYMENT`](../../shared/src/enums.ts:8) → [`AWAITING_REACTION`](../../shared/src/enums.ts:9)
 - "Just Say No" creates nested interrupt loops (counter → counter-counter chain)
 
 ### Card Routing Architecture
-- Money cards → Player.bank (permanent placement)
-- Property cards → Player.properties (grouped by color, can be reorganized)
+- Money cards → [`Player.bank`](../../shared/src/types.ts:1) (permanent placement)
+- Property cards → [`Player.properties`](../../shared/src/types.ts:1) (grouped by color, can be reorganized)
 - Action/Rent cards → Discard pile after use (one-time effects)
 - Dual-use cards require UI decision before routing
 
 ### Phase Dependencies
-- Phase 1 (COMPLETED): OOP contracts in shared/types.ts
+- Phase 1 (COMPLETED): OOP contracts in [`shared/types.ts`](../../shared/src/types.ts:1)
 - Phase 2 depends on: CSV parser that stops at row 106 (not 996)
 - Phase 3 depends on: Turn constraint enforcement (draw 2/5, play 3, discard to 7)
 - Phase 4 depends on: State sanitization logic per player

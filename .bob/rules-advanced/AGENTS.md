@@ -3,13 +3,13 @@
 ## Critical Implementation Details
 
 ### Card Data Parsing
-- CSV has 106 cards (rows 1-106), but file contains 996 lines of empty rows - parser must stop at row 106
+- [`carddata.csv`](../../carddata.csv:1) has 106 cards (rows 1-106), but file contains 996 lines - parser MUST stop at row 106
 - "10-Color Multi-Color" wildcard has value "0" (not "$0M") - special case in parsing logic
 - Rent Value column format: "1,2,3" (comma-separated) for progressive rent based on set completion
 
 ### State Machine Constraints
 - Just Say No does NOT count toward 3-card play limit (special interrupt mechanic)
-- Changing wildcard color does NOT count toward 3-card play limit (explicitly stated in Instruction.md line 28)
+- Changing wildcard color does NOT count toward 3-card play limit
 - "Double the Rent" DOES count as a play (Rent + Double = 2 plays toward limit)
 
 ### Payment Resolution Edge Cases
@@ -20,7 +20,7 @@
 ### Wildcard Manipulation Rules
 - Wildcards can break completed sets during active turn (no locking mechanism)
 - Backend must reject wildcard moves if not player's active turn
-- Dual-color wildcards: automatic reorganization in Player.properties
+- Dual-color wildcards: automatic reorganization in [`Player.properties`](../../shared/src/types.ts:1)
 - 10-color wildcards: drag-and-drop to attach to different property sets
 
 ### House/Hotel Validation
@@ -32,3 +32,7 @@
 - Backend MUST verify player owns matching property before allowing rent card play
 - Standard rent cards target ALL opponents automatically
 - 10-color wild rent targets ONE specific opponent (requires targeting UI)
+
+## Mode Capabilities
+- **Full access to**: MCP tools, Browser tools
+- **Can edit**: All project files in server/, client/, shared/ directories
