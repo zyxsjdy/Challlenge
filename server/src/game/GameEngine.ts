@@ -1,6 +1,8 @@
-import { GameState, Player, Card } from 'shared';
-import { GamePhase } from 'shared';
+import { GameState, Player, Card, PropertyCard, PropertyWildcard, ActionCard, RentCard } from 'shared';
+import { GamePhase, CardCategory, PropertyColor } from 'shared';
 import { CardFactory } from './CardFactory';
+import { TurnManager } from './TurnManager';
+import { WinCondition } from './WinCondition';
 
 /**
  * PlayerAction - Represents an action a player wants to take
@@ -30,10 +32,14 @@ export interface ActionResult {
 export class GameEngine {
   private gameState: GameState;
   private deck: Card[];
+  private turnManager: TurnManager;
+  private winCondition: WinCondition;
 
   constructor() {
     this.gameState = new GameState();
     this.deck = [];
+    this.turnManager = new TurnManager();
+    this.winCondition = new WinCondition();
   }
 
   /**
@@ -138,8 +144,8 @@ export class GameEngine {
       };
     }
 
-    // Check 3-card play limit (Just Say No doesn't count)
-    if (this.gameState.turnPlayCount >= 3) {
+    // Check 3-card play limit
+    if (!this.turnManager.canPlayCard(this.gameState)) {
       return {
         success: false,
         message: 'Already played 3 cards this turn',
@@ -147,15 +153,22 @@ export class GameEngine {
       };
     }
 
-    // TODO: Implement specific card play logic based on card type
-    // For now, just increment play count
-    this.gameState.turnPlayCount++;
-
-    return {
-      success: true,
-      message: 'Card played successfully',
-      newState: this.gameState
-    };
+    // Route card based on type and placement
+    try {
+      this.playCard(currentPlayer.id, action.cardId, action.data);
+      
+      return {
+        success: true,
+        message: 'Card played successfully',
+        newState: this.gameState
+      };
+    } catch (error) {
+      return {
+        success: false,
+        message: error instanceof Error ? error.message : 'Failed to play card',
+        error: 'PLAY_CARD_ERROR'
+      };
+    }
   }
 
   /**
@@ -171,18 +184,8 @@ export class GameEngine {
       };
     }
 
-    // Check win condition before advancing turn
-    const winner = this.gameState.checkWinCondition();
-    if (winner) {
-      return {
-        success: true,
-        message: `${winner.name} wins!`,
-        newState: this.gameState
-      };
-    }
-
-    // Advance to next turn
-    this.gameState.nextTurn();
+    // Use TurnManager to end turn (handles hand limit and win condition)
+    this.turnManager.endTurn(this.gameState);
 
     return {
       success: true,
@@ -273,6 +276,171 @@ export class GameEngine {
   resetGame(): void {
     this.gameState = new GameState();
     this.deck = [];
+  }
+
+  /**
+   * Play a card with routing logic based on card type
+   * @param playerId Player playing the card
+   * @param cardId Card to play
+   * @param placement Placement data (color for properties, targets for actions, etc.)
+   */
+  private playCard(playerId: string, cardId: string, placement: any): void {
+    const player = this.gameState.players.find(p => p.id === playerId);
+    if (!player) {
+      throw new Error('Player not found');
+    }
+
+    const card = player.hand.find(c => c.id === cardId);
+    if (!card) {
+      throw new Error('Card not in hand');
+    }
+
+    // Route card based on category
+    if (card.category === CardCategory.MONEY) {
+      this.routeToBank(player, card);
+    } else if (card.category === CardCategory.PROPERTY) {
+      const propCard = card as PropertyCard;
+      this.routeToProperties(player, card, propCard.color);
+    } else if (card.category === CardCategory.PROPERTY_WILDCARD) {
+      const color = placement?.color;
+      if (!color) {
+        throw new Error('Must specify color for wildcard property');
+      }
+      this.routeToProperties(player, card, color);
+    } else if (card.category === CardCategory.ACTION) {
+      const useAsBank = placement?.useAsBank;
+      if (useAsBank && card.monetaryValue > 0) {
+        // Bank the action card (loses action ability)
+        this.routeToBank(player, card);
+      } else {
+        // Execute action (placeholder for Phase 5)
+        this.executeAction(player, card, placement);
+        this.routeToDiscard(card);
+      }
+    } else if (card.category === CardCategory.RENT) {
+      // Execute rent (placeholder for Phase 5)
+      this.executeRent(player, card, placement);
+      this.routeToDiscard(card);
+    }
+
+    // Increment play count (unless it's Just Say No or wildcard color change)
+    this.gameState.turnPlayCount++;
+  }
+
+  /**
+   * Route card to player's bank
+   */
+  private routeToBank(player: Player, card: Card): void {
+    player.playToBank(card);
+    console.log(`${player.name} banked ${card.name} ($${card.monetaryValue}M)`);
+  }
+
+  /**
+   * Route card to player's property area
+   */
+  private routeToProperties(player: Player, card: Card, color: PropertyColor): void {
+    player.playToProperties(card, color);
+    console.log(`${player.name} played ${card.name} to ${color} properties`);
+  }
+
+  /**
+   * Route card to discard pile
+   */
+  private routeToDiscard(card: Card): void {
+    this.gameState.discardPile.push(card);
+    console.log(`${card.name} discarded`);
+  }
+
+  /**
+   * Execute action card (placeholder for Phase 5)
+   */
+  private executeAction(player: Player, card: Card, placement: any): void {
+    const actionCard = card as ActionCard;
+    console.log(`${player.name} played action: ${actionCard.name}`);
+    // TODO: Implement action card logic in Phase 5
+  }
+
+  /**
+   * Execute rent card (placeholder for Phase 5)
+   */
+  private executeRent(player: Player, card: Card, placement: any): void {
+    const rentCard = card as RentCard;
+    console.log(`${player.name} played rent: ${rentCard.name}`);
+    // TODO: Implement rent logic in Phase 5
+  }
+
+  /**
+   * Move wildcard between property sets (only during active turn)
+   */
+  moveWildcard(playerId: string, cardId: string, newColor: PropertyColor): ActionResult {
+    const currentPlayer = this.gameState.getCurrentPlayer();
+    
+    // Validate it's the player's turn
+    if (playerId !== currentPlayer.id) {
+      return {
+        success: false,
+        message: 'Can only move wildcards during your turn',
+        error: 'NOT_YOUR_TURN'
+      };
+    }
+
+    // Find the wildcard in player's properties
+    let foundCard: Card | null = null;
+    let oldColor: PropertyColor | null = null;
+
+    for (const [color, cards] of currentPlayer.properties) {
+      const cardIndex = cards.findIndex(c => c.id === cardId);
+      if (cardIndex !== -1) {
+        foundCard = cards[cardIndex];
+        oldColor = color;
+        cards.splice(cardIndex, 1);
+        break;
+      }
+    }
+
+    if (!foundCard || !oldColor) {
+      return {
+        success: false,
+        message: 'Wildcard not found in properties',
+        error: 'CARD_NOT_FOUND'
+      };
+    }
+
+    if (foundCard.category !== CardCategory.PROPERTY_WILDCARD) {
+      return {
+        success: false,
+        message: 'Card is not a wildcard',
+        error: 'NOT_A_WILDCARD'
+      };
+    }
+
+    const wildcard = foundCard as PropertyWildcard;
+    
+    // Validate new color
+    if (!wildcard.canAssignToColor(newColor)) {
+      return {
+        success: false,
+        message: 'Wildcard cannot be assigned to this color',
+        error: 'INVALID_COLOR'
+      };
+    }
+
+    // Assign to new color
+    wildcard.assignToColor(newColor);
+    
+    // Add to new property set
+    if (!currentPlayer.properties.has(newColor)) {
+      currentPlayer.properties.set(newColor, []);
+    }
+    currentPlayer.properties.get(newColor)!.push(wildcard);
+
+    console.log(`${currentPlayer.name} moved wildcard from ${oldColor} to ${newColor}`);
+
+    return {
+      success: true,
+      message: 'Wildcard moved successfully',
+      newState: this.gameState
+    };
   }
 }
 

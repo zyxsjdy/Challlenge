@@ -33,6 +33,13 @@
 - Standard rent cards target ALL opponents automatically
 - 10-color wild rent targets ONE specific opponent (requires targeting UI)
 
+### Turn Management Implementation (Phase 3)
+- Turn play count incremented in [`GameEngine.playCard()`](../../server/src/game/GameEngine.ts:327) AFTER card routing completes
+- Win condition checked in [`TurnManager.endTurn()`](../../server/src/game/TurnManager.ts:52) BEFORE advancing to next player
+- [`WinCondition.countUniqueCompletedSets()`](../../server/src/game/WinCondition.ts:31) filters out houses/hotels (only counts properties/wildcards)
+- AWAITING_DISCARD phase triggers when hand > 7 at turn end - must discard before turn advances
+- Empty hand draw (5 cards) vs normal draw (2 cards) determined in [`TurnManager.startTurn()`](../../server/src/game/TurnManager.ts:15)
+
 ## Mode Restrictions
 - **Cannot edit**: Files outside of server/, client/, shared/ directories
 - **No access to**: MCP tools, Browser tools
