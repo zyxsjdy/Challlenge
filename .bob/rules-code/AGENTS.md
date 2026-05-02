@@ -3,7 +3,6 @@
 ## Critical Implementation Details
 
 ### Card Data Parsing
-- [`carddata.csv`](../../carddata.csv:1) has 106 cards (rows 1-106), but file contains 996 lines - parser MUST stop at row 106
 - "10-Color Multi-Color" wildcard has value "0" (not "$0M") - special case in parsing logic
 - Rent Value column format: "1,2,3" (comma-separated) for progressive rent based on set completion
 
@@ -20,7 +19,7 @@
 ### Wildcard Manipulation Rules
 - Wildcards can break completed sets during active turn (no locking mechanism)
 - Backend must reject wildcard moves if not player's active turn
-- Dual-color wildcards: automatic reorganization in [`Player.properties`](../../shared/src/types.ts:1)
+- Dual-color wildcards: automatic reorganization in `Player.properties`
 - 10-color wildcards: drag-and-drop to attach to different property sets
 
 ### House/Hotel Validation
@@ -34,18 +33,18 @@
 - 10-color wild rent targets ONE specific opponent (requires targeting UI)
 
 ### Turn Management Implementation (Phase 3)
-- Turn play count incremented in [`GameEngine.playCard()`](../../server/src/game/GameEngine.ts:327) AFTER card routing completes
-- Win condition checked in [`TurnManager.endTurn()`](../../server/src/game/TurnManager.ts:52) BEFORE advancing to next player
-- [`WinCondition.countUniqueCompletedSets()`](../../server/src/game/WinCondition.ts:31) filters out houses/hotels (only counts properties/wildcards)
+- Turn play count incremented in `GameEngine.playCard()` AFTER card routing completes
+- Win condition checked in `TurnManager.endTurn()` BEFORE advancing to next player
+- `WinCondition.countUniqueCompletedSets()` filters out houses/hotels (only counts properties/wildcards)
 - AWAITING_DISCARD phase triggers when hand > 7 at turn end - must discard before turn advances
-- Empty hand draw (5 cards) vs normal draw (2 cards) determined in [`TurnManager.startTurn()`](../../server/src/game/TurnManager.ts:15)
+- Empty hand draw (5 cards) vs normal draw (2 cards) determined in `TurnManager.startTurn()`
 
 ### Networking Architecture (Phase 4)
-- [`StateSanitizer.sanitizeForPlayer()`](../../server/src/network/StateSanitizer.ts:19) creates player-specific views - opponent hands hidden, only counts visible
+- `StateSanitizer.sanitizeForPlayer()` creates player-specific views - opponent hands hidden, only counts visible
 - `myHand` field in sanitized state is ONLY for requesting player (not in player objects array)
-- [`SocketManager`](../../server/src/network/SocketManager.ts:29) handles ALL Socket.IO events - server/src/index.ts only initializes it
+- `SocketManager` handles ALL Socket.IO events - server/src/index.ts only initializes it
 - State broadcasting is automatic after actions - GameEngine does NOT call broadcast methods
-- Reconnection logic: 30-second timeout in [`SocketManager`](../../server/src/network/SocketManager.ts:34) before removing disconnected players
+- Reconnection logic: 30-second timeout in `SocketManager` before removing disconnected players
 - Draw pile sequence hidden (count only), discard pile shows top card only
 
 ### Action Card System (Phase 5)
@@ -61,12 +60,15 @@
 - Wild rent cards require `targetPlayerId` in placement data (targets ONE opponent, not all)
 
 ### Client UI Architecture (Phase 6)
-- [`SocketService`](../../client/src/services/socketService.ts:21) is a singleton - do NOT instantiate multiple times
-- [`GameContext`](../../client/src/contexts/GameContext.tsx:1) is single source of truth - all components use `useGame()` hook
+- `SocketService` is a singleton - do NOT instantiate multiple times
+- `GameContext` is single source of truth - all components use `useGame()` hook
 - Drag data MUST include both `cardId` and `cardCategory` for drop zone validation to work
 - Modal state managed in GameContext, triggered by server events (not component local state)
-- Server URL hardcoded in [`App.tsx`](../../client/src/App.tsx:1) - must change for production
+- Server URL hardcoded in `App.tsx` - must change for production
 - Drop zones validate card category before accepting drops (bank vs property areas)
+
+### Phase 7 Bug Fix (Critical)
+- **Duplicate discard bug**: Action/Rent handlers are solely responsible for discarding cards - GameEngine must NOT call `routeToDiscard()` after handler execution (was causing duplicate card references in discard pile)
 
 ## Mode Restrictions
 - **Cannot edit**: Files outside of server/, client/, shared/ directories
