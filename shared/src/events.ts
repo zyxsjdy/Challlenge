@@ -37,8 +37,10 @@ export interface EndTurnPayload {
  */
 export interface SelectTargetPayload {
   targetPlayerId: string;
-  propertyColor?: PropertyColor; // For Deal Breaker
+  propertyColor?: PropertyColor; // For Deal Breaker, House, Hotel
   propertyCardId?: string; // For Sly Deal
+  myPropertyCardId?: string; // For Force Deal (my property)
+  theirPropertyCardId?: string; // For Force Deal (their property)
 }
 
 /**
@@ -137,7 +139,59 @@ export interface ReactionPromptPayload {
   actionType: string;
   initiatorId: string;
   targetId: string;
+  canCounter: boolean; // Whether target has Just Say No card
   timeoutSeconds: number;
+}
+
+/**
+ * Action card executed notification
+ */
+export interface ActionExecutedPayload {
+  playerId: string;
+  actionType: string;
+  targetPlayerId?: string;
+  details?: any; // Action-specific details
+}
+
+/**
+ * Property stolen notification
+ */
+export interface PropertyStolenPayload {
+  fromPlayerId: string;
+  toPlayerId: string;
+  propertyCardId: string;
+  propertyColor: PropertyColor;
+  actionType: 'SLY_DEAL' | 'DEAL_BREAKER';
+}
+
+/**
+ * Properties swapped notification (Force Deal)
+ */
+export interface PropertiesSwappedPayload {
+  player1Id: string;
+  player2Id: string;
+  property1CardId: string;
+  property2CardId: string;
+}
+
+/**
+ * Building placed notification (House/Hotel)
+ */
+export interface BuildingPlacedPayload {
+  playerId: string;
+  propertyColor: PropertyColor;
+  buildingType: 'HOUSE' | 'HOTEL';
+}
+
+/**
+ * Rent collected notification
+ */
+export interface RentCollectedPayload {
+  fromPlayerId: string;
+  toPlayerId: string;
+  amount: number;
+  propertyColor: PropertyColor;
+  wasDoubled: boolean;
 }
 
 /**
@@ -196,6 +250,11 @@ export const ServerEvents = {
   ACTION_REQUIRES_TARGET: 'action_requires_target',
   PAYMENT_REQUIRED: 'payment_required',
   REACTION_PROMPT: 'reaction_prompt',
+  ACTION_EXECUTED: 'action_executed',
+  PROPERTY_STOLEN: 'property_stolen',
+  PROPERTIES_SWAPPED: 'properties_swapped',
+  BUILDING_PLACED: 'building_placed',
+  RENT_COLLECTED: 'rent_collected',
   GAME_OVER: 'game_over',
   ERROR: 'error',
   PLAYER_DISCONNECTED: 'player_disconnected',

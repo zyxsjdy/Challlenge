@@ -48,6 +48,18 @@
 - Reconnection logic: 30-second timeout in [`SocketManager`](../../server/src/network/SocketManager.ts:34) before removing disconnected players
 - Draw pile sequence hidden (count only), discard pile shows top card only
 
+### Action Card System (Phase 5)
+- Just Say No CANNOT be played directly - only as reaction (GameEngine blocks direct play)
+- Just Say No does NOT increment `turnPlayCount` (special interrupt mechanic)
+- Payment handler uses `card.canBeUsedForPayment()` - 10-Color Wildcard returns false (value 0)
+- Properties used as payment route to recipient's property area via `addCardToRecipient()`, NOT bank
+- Multi-target actions (Birthday) use `remainingTargets` array in pendingAction for sequential processing
+- Reaction chain flips initiator/target roles - original initiator becomes target for counter-counter
+- House/Hotel tracking uses `(card as any).hasHouse` - not formalized in PropertyCard type yet
+- Action handlers extend abstract `ActionHandler` base class with `canExecute()`, `requiresTarget()`, `execute()`
+- Rent calculation includes House (+$3M) and Hotel (+$4M) bonuses via `calculateRent()` helper
+- Wild rent cards require `targetPlayerId` in placement data (targets ONE opponent, not all)
+
 ## Mode Restrictions
 - **Cannot edit**: Files outside of server/, client/, shared/ directories
 - **No access to**: MCP tools, Browser tools

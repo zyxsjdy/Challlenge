@@ -1,8 +1,20 @@
 import { GameState, Player, Card, PropertyCard, PropertyWildcard, ActionCard, RentCard } from 'shared';
-import { GamePhase, CardCategory, PropertyColor } from 'shared';
+import { GamePhase, CardCategory, PropertyColor, ActionType } from 'shared';
 import { CardFactory } from './CardFactory';
 import { TurnManager } from './TurnManager';
 import { WinCondition } from './WinCondition';
+import { RentHandler, RentData } from '../actions/RentHandler';
+import { SlyDealHandler, ForceDealHandler, DealBreakerHandler } from '../actions/StealHandlers';
+import { PaymentHandler, PaymentData } from '../actions/PaymentHandler';
+import { ReactionHandler, ReactionData } from '../actions/ReactionHandler';
+import {
+  PassGoHandler,
+  ItsMyBirthdayHandler,
+  DebtCollectorHandler,
+  HouseHandler,
+  HotelHandler,
+  DoubleTheRentHandler
+} from '../actions/SpecialActionHandlers';
 
 /**
  * PlayerAction - Represents an action a player wants to take
@@ -34,12 +46,36 @@ export class GameEngine {
   private deck: Card[];
   private turnManager: TurnManager;
   private winCondition: WinCondition;
+  private rentHandler: RentHandler;
+  private slyDealHandler: SlyDealHandler;
+  private forceDealHandler: ForceDealHandler;
+  private dealBreakerHandler: DealBreakerHandler;
+  private paymentHandler: PaymentHandler;
+  private reactionHandler: ReactionHandler;
+  private passGoHandler: PassGoHandler;
+  private birthdayHandler: ItsMyBirthdayHandler;
+  private debtCollectorHandler: DebtCollectorHandler;
+  private houseHandler: HouseHandler;
+  private hotelHandler: HotelHandler;
+  private doubleRentHandler: DoubleTheRentHandler;
 
   constructor() {
     this.gameState = new GameState();
     this.deck = [];
     this.turnManager = new TurnManager();
     this.winCondition = new WinCondition();
+    this.rentHandler = new RentHandler();
+    this.slyDealHandler = new SlyDealHandler();
+    this.forceDealHandler = new ForceDealHandler();
+    this.dealBreakerHandler = new DealBreakerHandler();
+    this.paymentHandler = new PaymentHandler();
+    this.reactionHandler = new ReactionHandler();
+    this.passGoHandler = new PassGoHandler();
+    this.birthdayHandler = new ItsMyBirthdayHandler();
+    this.debtCollectorHandler = new DebtCollectorHandler();
+    this.houseHandler = new HouseHandler();
+    this.hotelHandler = new HotelHandler();
+    this.doubleRentHandler = new DoubleTheRentHandler();
   }
 
   /**
@@ -222,14 +258,31 @@ export class GameEngine {
       };
     }
 
-    // TODO: Implement response handling logic
-    // This will be expanded in Phase 5 for action cards and interrupts
+    try {
+      const pendingAction = this.gameState.pendingAction;
 
-    return {
-      success: true,
-      message: 'Response processed',
-      newState: this.gameState
-    };
+      if (pendingAction.type === 'PAYMENT') {
+        // Handle payment submission
+        const paymentData = action.data as PaymentData;
+        this.paymentHandler.processPayment(this.gameState, action.playerId, paymentData.cardIds);
+      } else if (pendingAction.type === 'REACTION') {
+        // Handle Just Say No response
+        const reactionData = action.data as ReactionData;
+        this.reactionHandler.handleReaction(this.gameState, action.playerId, reactionData);
+      }
+
+      return {
+        success: true,
+        message: 'Response processed',
+        newState: this.gameState
+      };
+    } catch (error) {
+      return {
+        success: false,
+        message: error instanceof Error ? error.message : 'Failed to process response',
+        error: 'RESPONSE_ERROR'
+      };
+    }
   }
 
   /**
@@ -352,21 +405,73 @@ export class GameEngine {
   }
 
   /**
-   * Execute action card (placeholder for Phase 5)
+   * Execute action card
    */
   private executeAction(player: Player, card: Card, placement: any): void {
     const actionCard = card as ActionCard;
     console.log(`${player.name} played action: ${actionCard.name}`);
-    // TODO: Implement action card logic in Phase 5
+
+    // Route to appropriate handler based on action type
+    switch (actionCard.actionType) {
+      case ActionType.PASS_GO:
+        this.passGoHandler.execute(this.gameState, player.id, card, placement);
+        break;
+
+      case ActionType.ITS_MY_BIRTHDAY:
+        this.birthdayHandler.execute(this.gameState, player.id, card, placement);
+        break;
+
+      case ActionType.DEBT_COLLECTOR:
+        this.debtCollectorHandler.execute(this.gameState, player.id, card, placement);
+        break;
+
+      case ActionType.SLY_DEAL:
+        this.slyDealHandler.execute(this.gameState, player.id, card, placement);
+        break;
+
+      case ActionType.FORCE_DEAL:
+        this.forceDealHandler.execute(this.gameState, player.id, card, placement);
+        break;
+
+      case ActionType.DEAL_BREAKER:
+        this.dealBreakerHandler.execute(this.gameState, player.id, card, placement);
+        break;
+
+      case ActionType.HOUSE:
+        this.houseHandler.execute(this.gameState, player.id, card, placement);
+        break;
+
+      case ActionType.HOTEL:
+        this.hotelHandler.execute(this.gameState, player.id, card, placement);
+        break;
+
+      case ActionType.DOUBLE_THE_RENT:
+        this.doubleRentHandler.execute(this.gameState, player.id, card, placement);
+        break;
+
+      case ActionType.JUST_SAY_NO:
+        // Just Say No is handled in ReactionHandler, not as a direct play
+        throw new Error('Just Say No can only be used as a reaction');
+
+      default:
+        throw new Error(`Unknown action type: ${actionCard.actionType}`);
+    }
   }
 
   /**
-   * Execute rent card (placeholder for Phase 5)
+   * Execute rent card
    */
   private executeRent(player: Player, card: Card, placement: any): void {
     const rentCard = card as RentCard;
     console.log(`${player.name} played rent: ${rentCard.name}`);
-    // TODO: Implement rent logic in Phase 5
+
+    // Validate player can execute rent
+    if (!this.rentHandler.canExecute(this.gameState, player.id, card)) {
+      throw new Error('Cannot execute rent - no matching properties');
+    }
+
+    // Execute rent collection
+    this.rentHandler.execute(this.gameState, player.id, card, placement as RentData);
   }
 
   /**
