@@ -29,6 +29,8 @@ export interface SelectTargetPayload {
     targetPlayerId: string;
     propertyColor?: PropertyColor;
     propertyCardId?: string;
+    myPropertyCardId?: string;
+    theirPropertyCardId?: string;
 }
 /**
  * Player selects cards to pay debt
@@ -112,7 +114,54 @@ export interface ReactionPromptPayload {
     actionType: string;
     initiatorId: string;
     targetId: string;
+    canCounter: boolean;
     timeoutSeconds: number;
+}
+/**
+ * Action card executed notification
+ */
+export interface ActionExecutedPayload {
+    playerId: string;
+    actionType: string;
+    targetPlayerId?: string;
+    details?: any;
+}
+/**
+ * Property stolen notification
+ */
+export interface PropertyStolenPayload {
+    fromPlayerId: string;
+    toPlayerId: string;
+    propertyCardId: string;
+    propertyColor: PropertyColor;
+    actionType: 'SLY_DEAL' | 'DEAL_BREAKER';
+}
+/**
+ * Properties swapped notification (Force Deal)
+ */
+export interface PropertiesSwappedPayload {
+    player1Id: string;
+    player2Id: string;
+    property1CardId: string;
+    property2CardId: string;
+}
+/**
+ * Building placed notification (House/Hotel)
+ */
+export interface BuildingPlacedPayload {
+    playerId: string;
+    propertyColor: PropertyColor;
+    buildingType: 'HOUSE' | 'HOTEL';
+}
+/**
+ * Rent collected notification
+ */
+export interface RentCollectedPayload {
+    fromPlayerId: string;
+    toPlayerId: string;
+    amount: number;
+    propertyColor: PropertyColor;
+    wasDoubled: boolean;
 }
 /**
  * Game over announcement
@@ -145,6 +194,7 @@ export interface PlayerReconnectedPayload {
 }
 export declare const ClientEvents: {
     readonly JOIN_GAME: "join_game";
+    readonly START_GAME: "start_game";
     readonly PLAY_CARD: "play_card";
     readonly END_TURN: "end_turn";
     readonly SELECT_TARGET: "select_target";
@@ -161,6 +211,11 @@ export declare const ServerEvents: {
     readonly ACTION_REQUIRES_TARGET: "action_requires_target";
     readonly PAYMENT_REQUIRED: "payment_required";
     readonly REACTION_PROMPT: "reaction_prompt";
+    readonly ACTION_EXECUTED: "action_executed";
+    readonly PROPERTY_STOLEN: "property_stolen";
+    readonly PROPERTIES_SWAPPED: "properties_swapped";
+    readonly BUILDING_PLACED: "building_placed";
+    readonly RENT_COLLECTED: "rent_collected";
     readonly GAME_OVER: "game_over";
     readonly ERROR: "error";
     readonly PLAYER_DISCONNECTED: "player_disconnected";

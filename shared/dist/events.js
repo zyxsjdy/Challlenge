@@ -6,6 +6,7 @@ exports.ServerEvents = exports.ClientEvents = void 0;
 // ============================================================================
 exports.ClientEvents = {
     JOIN_GAME: 'join_game',
+    START_GAME: 'start_game',
     PLAY_CARD: 'play_card',
     END_TURN: 'end_turn',
     SELECT_TARGET: 'select_target',
@@ -22,6 +23,11 @@ exports.ServerEvents = {
     ACTION_REQUIRES_TARGET: 'action_requires_target',
     PAYMENT_REQUIRED: 'payment_required',
     REACTION_PROMPT: 'reaction_prompt',
+    ACTION_EXECUTED: 'action_executed',
+    PROPERTY_STOLEN: 'property_stolen',
+    PROPERTIES_SWAPPED: 'properties_swapped',
+    BUILDING_PLACED: 'building_placed',
+    RENT_COLLECTED: 'rent_collected',
     GAME_OVER: 'game_over',
     ERROR: 'error',
     PLAYER_DISCONNECTED: 'player_disconnected',

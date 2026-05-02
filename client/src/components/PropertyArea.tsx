@@ -6,7 +6,7 @@ import { useGame } from '../contexts/GameContext';
 import CardComponent from './CardComponent';
 
 interface PropertyAreaProps {
-  properties: Map<PropertyColor, Card[]>;
+  properties: Record<PropertyColor, Card[]>;
   isMyTurn: boolean;
 }
 
@@ -65,49 +65,65 @@ const PropertyArea: React.FC<PropertyAreaProps> = ({ properties, isMyTurn }) => 
     }
   };
 
+  // Show all property colors, not just ones with cards
+  const allColors = Object.values(PropertyColor);
+  
   return (
     <div className="property-area">
-      {Array.from(properties.entries()).map(([color, cards]) => {
-        const completed = isSetComplete(color, cards);
-        const { hasHouse, hasHotel } = getHouseHotel(cards);
-        const setSize = getSetSize(color);
-        const propertyCount = cards.filter(c =>
-          c.category === 'PROPERTY' || c.category === 'PROPERTY_WILDCARD'
-        ).length;
+      <h3 className="area-title">Properties</h3>
+      <div className="property-sets">
+        {allColors.map((propertyColor) => {
+          const cards = properties[propertyColor] || [];
+          const completed = isSetComplete(propertyColor, cards);
+          const { hasHouse, hasHotel } = getHouseHotel(cards);
+          const setSize = getSetSize(propertyColor);
+          const propertyCount = cards.filter((c: Card) =>
+            c.category === 'PROPERTY' || c.category === 'PROPERTY_WILDCARD'
+          ).length;
 
-        return (
-          <div
-            key={color}
-            className={`property-set ${completed ? 'completed' : ''} ${dragOverColor === color ? 'drag-over' : ''}`}
-            onDragOver={handleDragOver(color)}
-            onDragLeave={handleDragLeave}
-            onDrop={handleDrop(color)}
-          >
-            <h4>{getColorName(color)} ({propertyCount}/{setSize})</h4>
-            
-            {completed && (
-              <div className="set-complete-indicator">✓</div>
-            )}
-            
-            <div className="property-cards">
-              {cards.map(card => (
-                <CardComponent 
-                  key={card.id} 
-                  card={card}
-                  draggable={isMyTurn && card.category === 'PROPERTY_WILDCARD'}
-                />
-              ))}
-            </div>
-            
-            {(hasHouse || hasHotel) && (
-              <div className="upgrade-indicator">
-                {hasHouse && <div className="house-icon">H</div>}
-                {hasHotel && <div className="hotel-icon">H+</div>}
+          // Only show property sets that have cards or can accept drops
+          if (cards.length === 0 && !isMyTurn) {
+            return null;
+          }
+
+          return (
+            <div
+              key={propertyColor}
+              className={`property-set ${completed ? 'completed' : ''} ${dragOverColor === propertyColor ? 'drag-over' : ''} ${cards.length === 0 ? 'empty' : ''}`}
+              onDragOver={handleDragOver(propertyColor)}
+              onDragLeave={handleDragLeave}
+              onDrop={handleDrop(propertyColor)}
+            >
+              <h4>{getColorName(propertyColor)} ({propertyCount}/{setSize})</h4>
+              
+              {completed && (
+                <div className="set-complete-indicator">✓</div>
+              )}
+              
+              <div className="property-cards">
+                {cards.length > 0 ? (
+                  cards.map((card: Card) => (
+                    <CardComponent
+                      key={card.id}
+                      card={card}
+                      draggable={isMyTurn && card.category === 'PROPERTY_WILDCARD'}
+                    />
+                  ))
+                ) : (
+                  <div className="empty-set-placeholder">Drop property here</div>
+                )}
               </div>
-            )}
-          </div>
-        );
-      })}
+              
+              {(hasHouse || hasHotel) && (
+                <div className="upgrade-indicator">
+                  {hasHouse && <div className="house-icon">H</div>}
+                  {hasHotel && <div className="hotel-icon">H+</div>}
+                </div>
+              )}
+            </div>
+          );
+        })}
+      </div>
     </div>
   );
 };

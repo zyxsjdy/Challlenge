@@ -9,7 +9,7 @@ interface OpponentViewProps {
     name: string;
     handCount: number;
     bank: Card[];
-    properties: Map<PropertyColor, Card[]>;
+    properties: Record<PropertyColor, Card[]>;
     completedSets: PropertyColor[];
   };
   isCurrentPlayer: boolean;
@@ -41,17 +41,31 @@ const OpponentView: React.FC<OpponentViewProps> = ({ player, isCurrentPlayer }) 
 
         {/* Properties */}
         <div className="opponent-properties">
-          <h4>Sets: {player.completedSets.length}</h4>
-          <div className="property-sets-mini">
-            {Array.from(player.properties.entries()).map(([color, cards]) => {
-              const isComplete = player.completedSets.includes(color);
+          <h4>Properties ({player.completedSets.length} complete sets)</h4>
+          <div className="property-sets-display">
+            {Object.entries(player.properties).map(([color, cards]) => {
+              if (cards.length === 0) return null;
+              
+              const propertyColor = color as PropertyColor;
+              const isComplete = player.completedSets.includes(propertyColor);
+              const colorName = color.replace(/_/g, ' ').toLowerCase()
+                .split(' ')
+                .map((word: string) => word.charAt(0).toUpperCase() + word.slice(1))
+                .join(' ');
+              
               return (
-                <div 
-                  key={color} 
-                  className={`property-set-mini ${isComplete ? 'completed' : ''}`}
-                  title={`${color}: ${cards.length} cards`}
+                <div
+                  key={color}
+                  className={`opponent-property-set ${isComplete ? 'completed' : ''}`}
                 >
-                  {cards.length}
+                  <div className="property-set-header">
+                    {colorName} {isComplete && '✓'}
+                  </div>
+                  <div className="property-cards-small">
+                    {cards.map((card: Card) => (
+                      <CardComponent key={card.id} card={card} />
+                    ))}
+                  </div>
                 </div>
               );
             })}

@@ -85,6 +85,8 @@ export interface PendingAction {
     amount?: number;
     cardId?: string;
     canBeCountered?: boolean;
+    actionType?: string;
+    actionData?: any;
 }
 /**
  * Player - Represents a game player with their cards and properties
@@ -143,10 +145,10 @@ export interface SanitizedGameState {
         name: string;
         handCount: number;
         bank: Card[];
-        properties: Map<PropertyColor, Card[]>;
+        properties: Record<PropertyColor, Card[]>;
         completedSets: PropertyColor[];
     }[];
-    currentPlayerId: string;
+    currentPlayerId: string | null;
     phase: GamePhase;
     turnPlayCount: number;
     drawPileCount: number;

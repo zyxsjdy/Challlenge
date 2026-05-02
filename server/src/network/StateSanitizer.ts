@@ -1,4 +1,5 @@
 import { GameState, SanitizedGameState, Card } from 'shared';
+import { PropertyColor } from 'shared';
 
 /**
  * StateSanitizer - Sanitizes game state for client consumption
@@ -17,18 +18,25 @@ export class StateSanitizer {
    * @returns Sanitized state safe for client consumption
    */
   static sanitizeForPlayer(gameState: GameState, playerId: string): SanitizedGameState {
+    // Get current player (may be undefined if game hasn't started)
     const currentPlayer = gameState.players[gameState.currentPlayerIndex];
     
     // Sanitize player data
-    const sanitizedPlayers = gameState.players.map(player => {
+    const sanitizedPlayers: SanitizedGameState['players'] = gameState.players.map(player => {
       const isRequestingPlayer = player.id === playerId;
+      
+      // Convert Map to plain object for JSON serialization
+      const propertiesObj: Record<PropertyColor, Card[]> = {} as Record<PropertyColor, Card[]>;
+      player.properties.forEach((cards, color) => {
+        propertiesObj[color] = cards;
+      });
       
       return {
         id: player.id,
         name: player.name,
         handCount: player.hand.length,
         bank: player.bank, // Bank is always visible
-        properties: player.properties, // Properties are always visible
+        properties: propertiesObj, // Convert Map to object for serialization
         completedSets: player.completedSets,
       };
     });
@@ -38,13 +46,13 @@ export class StateSanitizer {
     const myHand = requestingPlayer ? requestingPlayer.hand : undefined;
 
     // Get top card of discard pile (or null if empty)
-    const discardPileTop = gameState.discardPile.length > 0 
-      ? gameState.discardPile[gameState.discardPile.length - 1] 
+    const discardPileTop = gameState.discardPile.length > 0
+      ? gameState.discardPile[gameState.discardPile.length - 1]
       : null;
 
     return {
       players: sanitizedPlayers,
-      currentPlayerId: currentPlayer.id,
+      currentPlayerId: currentPlayer?.id || null, // Handle undefined currentPlayer
       phase: gameState.phase,
       turnPlayCount: gameState.turnPlayCount,
       drawPileCount: gameState.drawPile.length,
@@ -107,14 +115,22 @@ export class StateSanitizer {
         return {
           turnPlayCount: gameState.turnPlayCount,
           myHand: requestingPlayer?.hand,
-          players: gameState.players.map(p => ({
-            id: p.id,
-            name: p.name,
-            handCount: p.hand.length,
-            bank: p.bank,
-            properties: p.properties,
-            completedSets: p.completedSets,
-          })),
+          players: gameState.players.map(p => {
+            // Convert Map to plain object for JSON serialization
+            const propertiesObj: Record<PropertyColor, Card[]> = {} as Record<PropertyColor, Card[]>;
+            p.properties.forEach((cards, color) => {
+              propertiesObj[color] = cards;
+            });
+            
+            return {
+              id: p.id,
+              name: p.name,
+              handCount: p.hand.length,
+              bank: p.bank,
+              properties: propertiesObj,
+              completedSets: p.completedSets,
+            };
+          }),
         };
 
       case 'PHASE_CHANGE':

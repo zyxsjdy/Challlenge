@@ -180,6 +180,8 @@ export interface PendingAction {
   amount?: number;
   cardId?: string;
   canBeCountered?: boolean;
+  actionType?: string; // For TARGET_SELECTION: stores the action type (DEBT_COLLECTOR, SLY_DEAL, etc.)
+  actionData?: any; // For TARGET_SELECTION: stores additional data needed to complete the action
 }
 
 /**
@@ -344,10 +346,10 @@ export interface SanitizedGameState {
     name: string;
     handCount: number;
     bank: Card[];
-    properties: Map<PropertyColor, Card[]>;
+    properties: Record<PropertyColor, Card[]>; // Plain object instead of Map for JSON serialization
     completedSets: PropertyColor[];
   }[];
-  currentPlayerId: string;
+  currentPlayerId: string | null; // Null during WAITING_FOR_PLAYERS phase
   phase: GamePhase;
   turnPlayCount: number;
   drawPileCount: number;
@@ -500,14 +502,22 @@ export class GameState {
    */
   sanitizeForPlayer(playerId: string): SanitizedGameState {
     return {
-      players: this.players.map(p => ({
-        id: p.id,
-        name: p.name,
-        handCount: p.hand.length,
-        bank: p.bank,
-        properties: p.properties,
-        completedSets: p.completedSets
-      })),
+      players: this.players.map(p => {
+        // Convert Map to plain object for JSON serialization
+        const propertiesObj: Record<PropertyColor, Card[]> = {} as Record<PropertyColor, Card[]>;
+        p.properties.forEach((cards, color) => {
+          propertiesObj[color] = cards;
+        });
+        
+        return {
+          id: p.id,
+          name: p.name,
+          handCount: p.hand.length,
+          bank: p.bank,
+          properties: propertiesObj,
+          completedSets: p.completedSets
+        };
+      }),
       currentPlayerId: this.players[this.currentPlayerIndex].id,
       phase: this.phase,
       turnPlayCount: this.turnPlayCount,

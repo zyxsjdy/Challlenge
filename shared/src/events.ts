@@ -233,6 +233,7 @@ export interface PlayerReconnectedPayload {
 
 export const ClientEvents = {
   JOIN_GAME: 'join_game',
+  START_GAME: 'start_game',
   PLAY_CARD: 'play_card',
   END_TURN: 'end_turn',
   SELECT_TARGET: 'select_target',

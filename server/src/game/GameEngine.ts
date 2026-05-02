@@ -79,20 +79,23 @@ export class GameEngine {
   }
  
   /**
-   * Initialize the game with player names
+   * Initialize the game with player IDs and names
    * Loads deck, shuffles, and deals initial hands
    */
-  initializeGame(playerNames: string[]): void {
-    if (playerNames.length < 2) {
+  initializeGame(playerIds: string[], playerNames: string[]): void {
+    if (playerIds.length !== playerNames.length) {
+      throw new Error('Player IDs and names arrays must have same length');
+    }
+    if (playerIds.length < 2) {
       throw new Error('Need at least 2 players to start');
     }
-    if (playerNames.length > 5) {
+    if (playerIds.length > 5) {
       throw new Error('Maximum 5 players allowed');
     }
  
-    // Create Player instances
-    for (let i = 0; i < playerNames.length; i++) {
-      const player = new Player(`player-${i}`, playerNames[i]);
+    // Create Player instances with actual socket IDs
+    for (let i = 0; i < playerIds.length; i++) {
+      const player = new Player(playerIds[i], playerNames[i]);
       this.gameState.addPlayer(player);
     }
  
@@ -106,9 +109,14 @@ export class GameEngine {
  
     // Set game phase to playing
     this.gameState.phase = GamePhase.PLAYING;
+    
+    // Draw 2 cards for the first player to start their turn
+    const firstPlayer = this.gameState.getCurrentPlayer();
+    this.gameState.drawCards(firstPlayer, 2);
  
     console.log(`Game initialized with ${playerNames.length} players`);
     console.log(`Deck size: ${this.gameState.drawPile.length} cards`);
+    console.log(`First player ${firstPlayer.name} starts with ${firstPlayer.hand.length} cards`);
   }
  
   /**
@@ -405,52 +413,67 @@ export class GameEngine {
   private executeAction(player: Player, card: Card, placement: any): void {
     const actionCard = card as ActionCard;
     console.log(`${player.name} played action: ${actionCard.name}`);
- 
-    // Route to appropriate handler based on action type
+
+    // Get the appropriate handler
+    let handler;
     switch (actionCard.actionType) {
       case ActionType.PASS_GO:
-        this.passGoHandler.execute(this.gameState, player.id, card, placement);
+        handler = this.passGoHandler;
         break;
- 
       case ActionType.ITS_MY_BIRTHDAY:
-        this.birthdayHandler.execute(this.gameState, player.id, card, placement);
+        handler = this.birthdayHandler;
         break;
- 
       case ActionType.DEBT_COLLECTOR:
-        this.debtCollectorHandler.execute(this.gameState, player.id, card, placement);
+        handler = this.debtCollectorHandler;
         break;
- 
       case ActionType.SLY_DEAL:
-        this.slyDealHandler.execute(this.gameState, player.id, card, placement);
+        handler = this.slyDealHandler;
         break;
- 
       case ActionType.FORCE_DEAL:
-        this.forceDealHandler.execute(this.gameState, player.id, card, placement);
+        handler = this.forceDealHandler;
         break;
- 
       case ActionType.DEAL_BREAKER:
-        this.dealBreakerHandler.execute(this.gameState, player.id, card, placement);
+        handler = this.dealBreakerHandler;
         break;
- 
       case ActionType.HOUSE:
-        this.houseHandler.execute(this.gameState, player.id, card, placement);
+        handler = this.houseHandler;
         break;
- 
       case ActionType.HOTEL:
-        this.hotelHandler.execute(this.gameState, player.id, card, placement);
+        handler = this.hotelHandler;
         break;
- 
       case ActionType.DOUBLE_THE_RENT:
-        this.doubleRentHandler.execute(this.gameState, player.id, card, placement);
+        handler = this.doubleRentHandler;
         break;
- 
       case ActionType.JUST_SAY_NO:
-        // Just Say No is handled in ReactionHandler, not as a direct play
         throw new Error('Just Say No can only be used as a reaction');
- 
       default:
         throw new Error(`Unknown action type: ${actionCard.actionType}`);
     }
+
+    // Check if handler requires target selection
+    if (handler.requiresTarget() && !placement?.targetPlayerId) {
+      // Set game phase to awaiting target
+      this.gameState.phase = GamePhase.AWAITING_TARGET;
+      this.gameState.pendingAction = {
+        type: 'TARGET_SELECTION',
+        initiatorId: player.id,
+        cardId: card.id,
+        actionType: actionCard.actionType,
+        actionData: { ...placement, pendingCard: card } // Store the card in actionData
+      };
+      
+      // Remove card from hand (will be discarded by handler after target selection)
+      const cardIndex = player.hand.findIndex(c => c.id === card.id);
+      if (cardIndex !== -1) {
+        player.hand.splice(cardIndex, 1);
+      }
+      
+      console.log(`${actionCard.name} requires target selection - awaiting player input`);
+      return;
+    }
+
+    // Execute the action with the handler
+    handler.execute(this.gameState, player.id, card, placement);
   }
  
   /**
@@ -469,6 +492,88 @@ export class GameEngine {
     this.rentHandler.execute(this.gameState, player.id, card, placement as RentData);
   }
  
+  /**
+   * Complete a pending target selection
+   */
+  completeTargetSelection(targetPlayerId: string, additionalData?: any): ActionResult {
+    if (this.gameState.phase !== GamePhase.AWAITING_TARGET) {
+      return {
+        success: false,
+        message: 'No pending target selection',
+        error: 'INVALID_PHASE'
+      };
+    }
+
+    const pendingAction = this.gameState.pendingAction;
+    if (!pendingAction || pendingAction.type !== 'TARGET_SELECTION') {
+      return {
+        success: false,
+        message: 'No pending target selection action',
+        error: 'NO_PENDING_ACTION'
+      };
+    }
+
+    try {
+      const player = this.gameState.players.find(p => p.id === pendingAction.initiatorId);
+      if (!player) {
+        throw new Error('Initiator player not found');
+      }
+
+      // Get the card from actionData (we stored it there when creating the pending action)
+      const card = pendingAction.actionData?.pendingCard;
+      if (!card) {
+        throw new Error('Card not found in pending action data');
+      }
+
+      // Merge target data with original placement data
+      const completeData = {
+        ...pendingAction.actionData,
+        targetPlayerId,
+        ...additionalData
+      };
+
+      // Get the appropriate handler and execute
+      const actionType = pendingAction.actionType as ActionType;
+      let handler;
+      switch (actionType) {
+        case ActionType.DEBT_COLLECTOR:
+          handler = this.debtCollectorHandler;
+          break;
+        case ActionType.SLY_DEAL:
+          handler = this.slyDealHandler;
+          break;
+        case ActionType.FORCE_DEAL:
+          handler = this.forceDealHandler;
+          break;
+        case ActionType.DEAL_BREAKER:
+          handler = this.dealBreakerHandler;
+          break;
+        default:
+          throw new Error(`Unknown action type for target selection: ${actionType}`);
+      }
+
+      // Execute the action with complete data
+      handler.execute(this.gameState, player.id, card, completeData);
+
+      // Clear pending action and return to playing phase
+      this.gameState.pendingAction = null;
+      this.gameState.phase = GamePhase.PLAYING;
+
+      return {
+        success: true,
+        message: 'Target selection completed'
+      };
+
+    } catch (error) {
+      console.error('Error completing target selection:', error);
+      return {
+        success: false,
+        message: error instanceof Error ? error.message : 'Failed to complete target selection',
+        error: 'EXECUTION_ERROR'
+      };
+    }
+  }
+
   /**
    * Move wildcard between property sets (only during active turn)
    */
