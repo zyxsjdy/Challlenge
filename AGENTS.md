@@ -7,7 +7,7 @@ This file provides guidance to agents when working with code in this repository.
 - **Server dev**: `npm run dev:server` (uses ts-node, not tsc watch)
 - **Client dev**: `npm run dev:client` (Vite on port 3000, not default 5173)
 - **Build all**: `npm run build` (builds all workspaces)
-- **No test framework configured yet** (Phase 1 only has types)
+- **Test scripts**: Run with `npx ts-node` from server directory (e.g., `npx ts-node src/test-deck.ts`)
 
 ## Code Style (Non-Obvious Only)
 - **No ESLint/Prettier configs** - relies on TypeScript strict mode only
@@ -20,3 +20,5 @@ This file provides guidance to agents when working with code in this repository.
 - **OOP architecture**: All card types extend abstract [`Card`](shared/src/types.ts:6) class in [`shared/types.ts`](shared/src/types.ts:1)
 - **Enums over unions**: Uses TypeScript enums for [`GamePhase`](shared/src/enums.ts:4), [`CardCategory`](shared/src/enums.ts:16), [`PropertyColor`](shared/src/enums.ts:27), [`ActionType`](shared/src/enums.ts:44)
 - **Constants file**: Game rules encoded in [`GAME_CONSTANTS`](shared/src/constants.ts:7) object (not hardcoded in logic)
+- **Socket.IO player IDs**: Server uses socket.id as player ID (not separate UUID generation)
+- **CardFactory path**: Default CSV path is `'../carddata.csv'` relative to server/src/game/ directory
