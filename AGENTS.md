@@ -22,3 +22,7 @@ This file provides guidance to agents when working with code in this repository.
 - **Constants file**: Game rules encoded in [`GAME_CONSTANTS`](shared/src/constants.ts:7) object (not hardcoded in logic)
 - **Socket.IO player IDs**: Server uses socket.id as player ID (not separate UUID generation)
 - **CardFactory path**: Default CSV path is `'../carddata.csv'` relative to server/src/game/ directory
+- **Turn play count**: Incremented in [`GameEngine.playCard()`](server/src/game/GameEngine.ts:327) after card routing, not before
+- **Win condition check**: Called in [`TurnManager.endTurn()`](server/src/game/TurnManager.ts:52) BEFORE advancing to next player
+- **Property counting**: [`WinCondition`](server/src/game/WinCondition.ts:43) filters out houses/hotels when counting set completion
+- **AWAITING_DISCARD phase**: Added in Phase 3 - triggers when hand exceeds 7 cards at turn end

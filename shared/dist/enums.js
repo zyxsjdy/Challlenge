@@ -11,6 +11,7 @@ var GamePhase;
     GamePhase["AWAITING_TARGET"] = "AWAITING_TARGET";
     GamePhase["AWAITING_PAYMENT"] = "AWAITING_PAYMENT";
     GamePhase["AWAITING_REACTION"] = "AWAITING_REACTION";
+    GamePhase["AWAITING_DISCARD"] = "AWAITING_DISCARD";
     GamePhase["GAME_OVER"] = "GAME_OVER";
 })(GamePhase || (exports.GamePhase = GamePhase = {}));
 /**
