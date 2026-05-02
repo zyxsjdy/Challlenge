@@ -26,3 +26,11 @@
 - 10-Color Wildcard has value "0" in CSV (not "$0M" like other cards)
 - Action cards banked as money lose their action ability permanently
 - Rent Value column uses comma-separated format "1,2,3" for progressive rent tiers
+
+### Implementation Status
+- Phase 1-6 COMPLETED: Full game implementation with client UI
+- Server: [`server/src/`](../../server/src/) contains game engine, action handlers, networking
+- Client: [`client/src/`](../../client/src/) contains React UI with drag-and-drop gameplay
+- Shared: [`shared/src/`](../../shared/src/) contains type definitions and game constants
+- All 106 cards from CSV are parsed and playable
+- Real-time multiplayer via Socket.IO with state sanitization

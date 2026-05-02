@@ -42,3 +42,10 @@ This file provides guidance to agents when working with code in this repository.
 - **Multi-target actions**: Birthday uses `remainingTargets` array in pendingAction for sequential processing
 - **House/Hotel tracking**: Uses `(card as any).hasHouse` - not formalized in PropertyCard type yet
 - **Wild rent targeting**: Requires `targetPlayerId` in placement data (targets ONE opponent, not all)
+
+## Client UI Architecture (Phase 6)
+- **SocketService singleton**: Global instance in [`client/src/services/socketService.ts`](client/src/services/socketService.ts:21) - do NOT create multiple instances
+- **GameContext**: Single source of truth for client state - all components consume via `useGame()` hook
+- **Drag data format**: Must include `cardId` and `cardCategory` for drop zone validation
+- **Modal state**: Managed in GameContext, triggered by server events (not local state)
+- **Server URL**: Hardcoded in [`App.tsx`](client/src/App.tsx:1) - change for production deployment
