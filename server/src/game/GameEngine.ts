@@ -15,10 +15,10 @@ import {
   HotelHandler,
   DoubleTheRentHandler
 } from '../actions/SpecialActionHandlers';
-
+ 
 /**
- * PlayerAction - Represents an action a player wants to take
- */
+* PlayerAction - Represents an action a player wants to take
+*/
 export interface PlayerAction {
   type: 'PLAY_CARD' | 'END_TURN' | 'DRAW_CARDS' | 'RESPOND';
   playerId: string;
@@ -26,21 +26,21 @@ export interface PlayerAction {
   targetPlayerId?: string;
   data?: any;
 }
-
+ 
 /**
- * ActionResult - Result of processing a player action
- */
+* ActionResult - Result of processing a player action
+*/
 export interface ActionResult {
   success: boolean;
   message: string;
   newState?: GameState;
   error?: string;
 }
-
+ 
 /**
- * GameEngine - Core game logic and state management
- * Handles game initialization, turn management, and action processing
- */
+* GameEngine - Core game logic and state management
+* Handles game initialization, turn management, and action processing
+*/
 export class GameEngine {
   private gameState: GameState;
   private deck: Card[];
@@ -58,7 +58,7 @@ export class GameEngine {
   private houseHandler: HouseHandler;
   private hotelHandler: HotelHandler;
   private doubleRentHandler: DoubleTheRentHandler;
-
+ 
   constructor() {
     this.gameState = new GameState();
     this.deck = [];
@@ -77,7 +77,7 @@ export class GameEngine {
     this.hotelHandler = new HotelHandler();
     this.doubleRentHandler = new DoubleTheRentHandler();
   }
-
+ 
   /**
    * Initialize the game with player names
    * Loads deck, shuffles, and deals initial hands
@@ -89,28 +89,28 @@ export class GameEngine {
     if (playerNames.length > 5) {
       throw new Error('Maximum 5 players allowed');
     }
-
+ 
     // Create Player instances
     for (let i = 0; i < playerNames.length; i++) {
       const player = new Player(`player-${i}`, playerNames[i]);
       this.gameState.addPlayer(player);
     }
-
+ 
     // Load and shuffle deck
     this.deck = CardFactory.createDeck();
     this.gameState.initializeDeck(this.deck);
     this.gameState.shuffleDeck();
-
+ 
     // Deal initial hands (5 cards each)
     this.gameState.dealInitialHands();
-
+ 
     // Set game phase to playing
     this.gameState.phase = GamePhase.PLAYING;
-
+ 
     console.log(`Game initialized with ${playerNames.length} players`);
     console.log(`Deck size: ${this.gameState.drawPile.length} cards`);
   }
-
+ 
   /**
    * Process a player action
    * Validates action and updates game state accordingly
@@ -126,21 +126,17 @@ export class GameEngine {
           error: 'NOT_YOUR_TURN'
         };
       }
-
+ 
       // Process action based on type
       switch (action.type) {
         case 'PLAY_CARD':
           return this.handlePlayCard(action);
-        
         case 'END_TURN':
           return this.handleEndTurn(action);
-        
         case 'DRAW_CARDS':
           return this.handleDrawCards(action);
-        
         case 'RESPOND':
           return this.handleRespond(action);
-        
         default:
           return {
             success: false,
@@ -156,7 +152,7 @@ export class GameEngine {
       };
     }
   }
-
+ 
   /**
    * Handle playing a card from hand
    */
@@ -168,10 +164,10 @@ export class GameEngine {
         error: 'NO_CARD_ID'
       };
     }
-
+ 
     const currentPlayer = this.gameState.getCurrentPlayer();
     const card = currentPlayer.hand.find(c => c.id === action.cardId);
-
+ 
     if (!card) {
       return {
         success: false,
@@ -179,7 +175,7 @@ export class GameEngine {
         error: 'CARD_NOT_FOUND'
       };
     }
-
+ 
     // Check 3-card play limit
     if (!this.turnManager.canPlayCard(this.gameState)) {
       return {
@@ -188,11 +184,10 @@ export class GameEngine {
         error: 'PLAY_LIMIT_REACHED'
       };
     }
-
+ 
     // Route card based on type and placement
     try {
       this.playCard(currentPlayer.id, action.cardId, action.data);
-      
       return {
         success: true,
         message: 'Card played successfully',
@@ -206,7 +201,7 @@ export class GameEngine {
       };
     }
   }
-
+ 
   /**
    * Handle ending the current player's turn
    */
@@ -219,33 +214,33 @@ export class GameEngine {
         error: 'PENDING_ACTION'
       };
     }
-
+ 
     // Use TurnManager to end turn (handles hand limit and win condition)
     this.turnManager.endTurn(this.gameState);
-
+ 
     return {
       success: true,
       message: 'Turn ended',
       newState: this.gameState
     };
   }
-
+ 
   /**
    * Handle drawing cards (for Pass Go or turn start)
    */
   private handleDrawCards(action: PlayerAction): ActionResult {
     const currentPlayer = this.gameState.getCurrentPlayer();
     const count = action.data?.count || 2;
-
+ 
     this.gameState.drawCards(currentPlayer, count);
-
+ 
     return {
       success: true,
       message: `Drew ${count} cards`,
       newState: this.gameState
     };
   }
-
+ 
   /**
    * Handle player response to pending action (payment, reaction, etc.)
    */
@@ -257,10 +252,10 @@ export class GameEngine {
         error: 'NO_PENDING_ACTION'
       };
     }
-
+ 
     try {
       const pendingAction = this.gameState.pendingAction;
-
+ 
       if (pendingAction.type === 'PAYMENT') {
         // Handle payment submission
         const paymentData = action.data as PaymentData;
@@ -270,7 +265,7 @@ export class GameEngine {
         const reactionData = action.data as ReactionData;
         this.reactionHandler.handleReaction(this.gameState, action.playerId, reactionData);
       }
-
+ 
       return {
         success: true,
         message: 'Response processed',
@@ -284,21 +279,21 @@ export class GameEngine {
       };
     }
   }
-
+ 
   /**
    * Get current game state
    */
   getGameState(): GameState {
     return this.gameState;
   }
-
+ 
   /**
    * Get sanitized game state for a specific player
    */
   getSanitizedState(playerId: string): any {
     return this.gameState.sanitizeForPlayer(playerId);
   }
-
+ 
   /**
    * Check if game is in progress
    */
@@ -308,21 +303,21 @@ export class GameEngine {
            this.gameState.phase === GamePhase.AWAITING_PAYMENT ||
            this.gameState.phase === GamePhase.AWAITING_REACTION;
   }
-
+ 
   /**
    * Check if game is over
    */
   isGameOver(): boolean {
     return this.gameState.phase === GamePhase.GAME_OVER;
   }
-
+ 
   /**
    * Get winner if game is over
    */
   getWinner(): Player | null {
     return this.gameState.winner;
   }
-
+ 
   /**
    * Reset game state for a new game
    */
@@ -330,7 +325,7 @@ export class GameEngine {
     this.gameState = new GameState();
     this.deck = [];
   }
-
+ 
   /**
    * Play a card with routing logic based on card type
    * @param playerId Player playing the card
@@ -342,12 +337,12 @@ export class GameEngine {
     if (!player) {
       throw new Error('Player not found');
     }
-
+ 
     const card = player.hand.find(c => c.id === cardId);
     if (!card) {
       throw new Error('Card not in hand');
     }
-
+ 
     // Route card based on category
     if (card.category === CardCategory.MONEY) {
       this.routeToBank(player, card);
@@ -366,20 +361,20 @@ export class GameEngine {
         // Bank the action card (loses action ability)
         this.routeToBank(player, card);
       } else {
-        // Execute action (placeholder for Phase 5)
+        // Execute action - handler is responsible for discarding
         this.executeAction(player, card, placement);
-        this.routeToDiscard(card);
+        // Note: Action handlers discard the card themselves
       }
     } else if (card.category === CardCategory.RENT) {
-      // Execute rent (placeholder for Phase 5)
+      // Execute rent - handler is responsible for discarding
       this.executeRent(player, card, placement);
-      this.routeToDiscard(card);
+      // Note: Rent handlers discard the card themselves
     }
-
+ 
     // Increment play count (unless it's Just Say No or wildcard color change)
     this.gameState.turnPlayCount++;
   }
-
+ 
   /**
    * Route card to player's bank
    */
@@ -387,7 +382,7 @@ export class GameEngine {
     player.playToBank(card);
     console.log(`${player.name} banked ${card.name} ($${card.monetaryValue}M)`);
   }
-
+ 
   /**
    * Route card to player's property area
    */
@@ -395,7 +390,7 @@ export class GameEngine {
     player.playToProperties(card, color);
     console.log(`${player.name} played ${card.name} to ${color} properties`);
   }
-
+ 
   /**
    * Route card to discard pile
    */
@@ -403,83 +398,82 @@ export class GameEngine {
     this.gameState.discardPile.push(card);
     console.log(`${card.name} discarded`);
   }
-
+ 
   /**
    * Execute action card
    */
   private executeAction(player: Player, card: Card, placement: any): void {
     const actionCard = card as ActionCard;
     console.log(`${player.name} played action: ${actionCard.name}`);
-
+ 
     // Route to appropriate handler based on action type
     switch (actionCard.actionType) {
       case ActionType.PASS_GO:
         this.passGoHandler.execute(this.gameState, player.id, card, placement);
         break;
-
+ 
       case ActionType.ITS_MY_BIRTHDAY:
         this.birthdayHandler.execute(this.gameState, player.id, card, placement);
         break;
-
+ 
       case ActionType.DEBT_COLLECTOR:
         this.debtCollectorHandler.execute(this.gameState, player.id, card, placement);
         break;
-
+ 
       case ActionType.SLY_DEAL:
         this.slyDealHandler.execute(this.gameState, player.id, card, placement);
         break;
-
+ 
       case ActionType.FORCE_DEAL:
         this.forceDealHandler.execute(this.gameState, player.id, card, placement);
         break;
-
+ 
       case ActionType.DEAL_BREAKER:
         this.dealBreakerHandler.execute(this.gameState, player.id, card, placement);
         break;
-
+ 
       case ActionType.HOUSE:
         this.houseHandler.execute(this.gameState, player.id, card, placement);
         break;
-
+ 
       case ActionType.HOTEL:
         this.hotelHandler.execute(this.gameState, player.id, card, placement);
         break;
-
+ 
       case ActionType.DOUBLE_THE_RENT:
         this.doubleRentHandler.execute(this.gameState, player.id, card, placement);
         break;
-
+ 
       case ActionType.JUST_SAY_NO:
         // Just Say No is handled in ReactionHandler, not as a direct play
         throw new Error('Just Say No can only be used as a reaction');
-
+ 
       default:
         throw new Error(`Unknown action type: ${actionCard.actionType}`);
     }
   }
-
+ 
   /**
    * Execute rent card
    */
   private executeRent(player: Player, card: Card, placement: any): void {
     const rentCard = card as RentCard;
     console.log(`${player.name} played rent: ${rentCard.name}`);
-
+ 
     // Validate player can execute rent
     if (!this.rentHandler.canExecute(this.gameState, player.id, card)) {
       throw new Error('Cannot execute rent - no matching properties');
     }
-
+ 
     // Execute rent collection
     this.rentHandler.execute(this.gameState, player.id, card, placement as RentData);
   }
-
+ 
   /**
    * Move wildcard between property sets (only during active turn)
    */
   moveWildcard(playerId: string, cardId: string, newColor: PropertyColor): ActionResult {
     const currentPlayer = this.gameState.getCurrentPlayer();
-    
     // Validate it's the player's turn
     if (playerId !== currentPlayer.id) {
       return {
@@ -488,11 +482,11 @@ export class GameEngine {
         error: 'NOT_YOUR_TURN'
       };
     }
-
+ 
     // Find the wildcard in player's properties
     let foundCard: Card | null = null;
     let oldColor: PropertyColor | null = null;
-
+ 
     for (const [color, cards] of currentPlayer.properties) {
       const cardIndex = cards.findIndex(c => c.id === cardId);
       if (cardIndex !== -1) {
@@ -502,7 +496,7 @@ export class GameEngine {
         break;
       }
     }
-
+ 
     if (!foundCard || !oldColor) {
       return {
         success: false,
@@ -510,7 +504,7 @@ export class GameEngine {
         error: 'CARD_NOT_FOUND'
       };
     }
-
+ 
     if (foundCard.category !== CardCategory.PROPERTY_WILDCARD) {
       return {
         success: false,
@@ -518,9 +512,8 @@ export class GameEngine {
         error: 'NOT_A_WILDCARD'
       };
     }
-
+ 
     const wildcard = foundCard as PropertyWildcard;
-    
     // Validate new color
     if (!wildcard.canAssignToColor(newColor)) {
       return {
@@ -529,32 +522,30 @@ export class GameEngine {
         error: 'INVALID_COLOR'
       };
     }
-
+ 
     // Assign to new color
     wildcard.assignToColor(newColor);
-    
     // Add to new property set
     if (!currentPlayer.properties.has(newColor)) {
       currentPlayer.properties.set(newColor, []);
     }
     currentPlayer.properties.get(newColor)!.push(wildcard);
-
+ 
     console.log(`${currentPlayer.name} moved wildcard from ${oldColor} to ${newColor}`);
-
+ 
     return {
       success: true,
       message: 'Wildcard moved successfully',
       newState: this.gameState
     };
   }
-
+ 
   /**
    * Discard cards from player's hand
    * Used when hand exceeds 7 cards at turn end
    */
   discardCards(playerId: string, cardIds: string[]): ActionResult {
     const player = this.gameState.players.find(p => p.id === playerId);
-    
     if (!player) {
       return {
         success: false,
@@ -562,7 +553,7 @@ export class GameEngine {
         error: 'PLAYER_NOT_FOUND'
       };
     }
-
+ 
     // Validate it's the discard phase
     if (this.gameState.phase !== GamePhase.AWAITING_DISCARD) {
       return {
@@ -571,7 +562,7 @@ export class GameEngine {
         error: 'INVALID_PHASE'
       };
     }
-
+ 
     // Validate player needs to discard
     const excessCards = player.hand.length - 7;
     if (excessCards <= 0) {
@@ -581,7 +572,7 @@ export class GameEngine {
         error: 'NO_EXCESS_CARDS'
       };
     }
-
+ 
     // Validate correct number of cards to discard
     if (cardIds.length !== excessCards) {
       return {
@@ -590,7 +581,7 @@ export class GameEngine {
         error: 'INVALID_DISCARD_COUNT'
       };
     }
-
+ 
     // Discard the cards
     for (const cardId of cardIds) {
       const card = player.removeFromHand(cardId);
@@ -603,17 +594,16 @@ export class GameEngine {
       }
       this.gameState.discardPile.push(card);
     }
-
+ 
     // Move to next player's turn
     this.gameState.phase = GamePhase.PLAYING;
     this.gameState.currentPlayerIndex =
       (this.gameState.currentPlayerIndex + 1) % this.gameState.players.length;
-    
     // Start next player's turn
     this.turnManager.startTurn(this.gameState);
-
+ 
     console.log(`${player.name} discarded ${cardIds.length} cards`);
-
+ 
     return {
       success: true,
       message: 'Cards discarded successfully',
@@ -621,5 +611,5 @@ export class GameEngine {
     };
   }
 }
-
+ 
 // Made with Bob
