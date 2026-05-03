@@ -329,7 +329,8 @@ export class DealBreakerHandler extends ActionHandler {
       initiatorId: playerId,
       targetId: data.targetPlayerId,
       canBeCountered: true,
-      cardId: card.id
+      cardId: card.id,
+      actionType: 'DEAL_BREAKER'
     };
 
     // Store deal breaker details

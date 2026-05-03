@@ -19,6 +19,7 @@ import {
   PlayerReconnectedPayload,
   ActionRequiresTargetPayload,
   ReactionPromptPayload,
+  PaymentRequiredPayload,
 } from 'shared';
 
 /**
@@ -211,7 +212,7 @@ export class SocketManager {
         type: 'PLAY_CARD',
         playerId,
         cardId: data.cardId,
-        data: { targetColor: data.targetColor },
+        data: data.placement || { targetColor: data.targetColor },
       };
 
       const result = this.gameEngine.processAction(action);
@@ -311,11 +312,32 @@ export class SocketManager {
     }
 
     try {
-      // This will be implemented in Phase 5 with payment handler
-      console.log(`Payment selected by ${playerId}:`, data);
-      this.sendError(socket, 'Payment selection not yet implemented');
+      console.log(`[SocketManager.handleSelectPayment] Payment selected by ${playerId}:`, data);
+      
+      const action: PlayerAction = {
+        type: 'RESPOND',
+        playerId,
+        data: {
+          cardIds: data.cardIds
+        }
+      };
+
+      console.log(`[SocketManager.handleSelectPayment] Calling gameEngine.processAction with:`, action);
+      const result = this.gameEngine.processAction(action);
+      console.log(`[SocketManager.handleSelectPayment] processAction result:`, result);
+      
+      if (!result.success) {
+        console.log(`[SocketManager.handleSelectPayment] ✗ Action failed: ${result.message}`);
+        this.sendError(socket, result.message);
+        return;
+      }
+
+      console.log(`[SocketManager.handleSelectPayment] ✓ Action succeeded, broadcasting state`);
+      // Broadcast updated state
+      this.broadcastGameState();
+
     } catch (error) {
-      console.error('Error handling payment selection:', error);
+      console.error('[SocketManager.handleSelectPayment] Error handling payment selection:', error);
       this.sendError(socket, 'Failed to select payment');
     }
   }
@@ -331,11 +353,33 @@ export class SocketManager {
     }
 
     try {
-      // This will be implemented in Phase 5 with reaction handler
-      console.log(`Reaction from ${playerId}:`, data);
-      this.sendError(socket, 'Reactions not yet implemented');
+      console.log(`[SocketManager.handleReactToAction] Reaction from ${playerId}:`, data);
+      
+      const action: PlayerAction = {
+        type: 'RESPOND',
+        playerId,
+        data: {
+          useJustSayNo: data.useJustSayNo,
+          justSayNoCardId: data.justSayNoCardId
+        }
+      };
+
+      console.log(`[SocketManager.handleReactToAction] Calling gameEngine.processAction with:`, action);
+      const result = this.gameEngine.processAction(action);
+      console.log(`[SocketManager.handleReactToAction] processAction result:`, result);
+      
+      if (!result.success) {
+        console.log(`[SocketManager.handleReactToAction] ✗ Action failed: ${result.message}`);
+        this.sendError(socket, result.message);
+        return;
+      }
+
+      console.log(`[SocketManager.handleReactToAction] ✓ Action succeeded, broadcasting state`);
+      // Broadcast updated state
+      this.broadcastGameState();
+
     } catch (error) {
-      console.error('Error handling reaction:', error);
+      console.error('[SocketManager.handleReactToAction] Error handling reaction:', error);
       this.sendError(socket, 'Failed to react to action');
     }
   }
@@ -472,6 +516,34 @@ export class SocketManager {
         targetSocket.emit(ServerEvents.REACTION_PROMPT, payload);
         console.log(`Emitted REACTION_PROMPT to ${gameState.pendingAction.targetId}`);
       }
+    }
+
+    // Check if we need to emit PAYMENT_REQUIRED for AWAITING_PAYMENT phase
+    console.log(`[broadcastGameState] Current phase: ${gameState.phase}, pendingAction:`, gameState.pendingAction);
+    
+    if (gameState.phase === 'AWAITING_PAYMENT' && gameState.pendingAction) {
+      console.log(`[broadcastGameState] AWAITING_PAYMENT detected, targetId: ${gameState.pendingAction.targetId}`);
+      const targetSocket = this.playerSockets.get(gameState.pendingAction.targetId!);
+      
+      if (targetSocket) {
+        console.log(`[broadcastGameState] Target socket found for ${gameState.pendingAction.targetId}`);
+        const targetPlayer = gameState.players.find(p => p.id === gameState.pendingAction!.targetId);
+        
+        const payload: PaymentRequiredPayload = {
+          amount: gameState.pendingAction.amount || 0,
+          fromPlayerId: gameState.pendingAction.targetId!,
+          toPlayerId: gameState.pendingAction.initiatorId,
+          reason: gameState.pendingAction.type || 'Payment'
+        };
+        
+        console.log(`[broadcastGameState] Emitting PAYMENT_REQUIRED:`, payload);
+        targetSocket.emit(ServerEvents.PAYMENT_REQUIRED, payload);
+        console.log(`[broadcastGameState] ✓ Emitted PAYMENT_REQUIRED to ${gameState.pendingAction.targetId} for $${payload.amount}M`);
+      } else {
+        console.log(`[broadcastGameState] ✗ Target socket NOT found for ${gameState.pendingAction.targetId}`);
+      }
+    } else {
+      console.log(`[broadcastGameState] Not in AWAITING_PAYMENT phase or no pendingAction`);
     }
 
     // Broadcast sanitized state to all players

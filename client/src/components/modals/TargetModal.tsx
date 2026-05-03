@@ -7,13 +7,54 @@ interface TargetModalProps {
 }
 
 const TargetModal: React.FC<TargetModalProps> = ({ data }) => {
-  const { selectTarget, closeTargetModal, gameState } = useGame();
+  const { selectTarget, closeTargetModal, gameState, playerId, showPropertySelectionModal, showCompletedSetSelectionModal } = useGame();
   const [selectedTarget, setSelectedTarget] = useState<string | null>(null);
 
   const handleSubmit = () => {
-    if (selectedTarget) {
-      selectTarget({ targetPlayerId: selectedTarget });
+    if (!selectedTarget) return;
+    
+    console.log('TargetModal handleSubmit:', { actionType: data.actionType, selectedTarget });
+    
+    // For Force Deal, show property selection modal
+    if (data.actionType === 'FORCED_DEAL') {
+      const myPlayer = gameState?.players.find(p => p.id === playerId);
+      const targetPlayer = gameState?.players.find(p => p.id === selectedTarget);
+      
+      console.log('Force Deal - showing property selection modal', {
+        hasMyPlayer: !!myPlayer,
+        hasTargetPlayer: !!targetPlayer,
+        myProperties: myPlayer?.properties,
+        theirProperties: targetPlayer?.properties
+      });
+      
+      if (myPlayer && targetPlayer) {
+        // Show property selection modal first, then close target modal
+        showPropertySelectionModal(selectedTarget, myPlayer.properties, targetPlayer.properties);
+        closeTargetModal();
+      }
+      return;
     }
+    
+    // For Deal Breaker, show completed set selection modal
+    if (data.actionType === 'DEAL_BREAKER') {
+      const targetPlayer = gameState?.players.find(p => p.id === selectedTarget);
+      
+      console.log('Deal Breaker - showing completed set selection modal', {
+        hasTargetPlayer: !!targetPlayer,
+        completedSets: targetPlayer?.completedSets
+      });
+      
+      if (targetPlayer && targetPlayer.completedSets.length > 0) {
+        // Show completed set selection modal first, then close target modal
+        showCompletedSetSelectionModal(selectedTarget, targetPlayer.completedSets);
+        closeTargetModal();
+      }
+      return;
+    }
+    
+    // For other actions, just send the target
+    console.log('Sending target selection:', { targetPlayerId: selectedTarget });
+    selectTarget({ targetPlayerId: selectedTarget });
   };
 
   const getActionDescription = () => {

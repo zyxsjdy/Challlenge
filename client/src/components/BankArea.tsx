@@ -37,8 +37,11 @@ const BankArea: React.FC<BankAreaProps> = ({ cards }) => {
     const cardCategory = e.dataTransfer.getData('cardCategory');
     
     // Validate card can be banked
-    if (cardCategory === CardCategory.MONEY || cardCategory === CardCategory.ACTION) {
+    if (cardCategory === CardCategory.MONEY) {
       playCard(cardId, { area: 'bank' });
+    } else if (cardCategory === CardCategory.ACTION) {
+      // For action cards, use useAsBank flag to bank them for their monetary value
+      playCard(cardId, { area: 'bank', useAsBank: true });
     }
   };
 

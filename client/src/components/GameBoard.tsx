@@ -11,6 +11,12 @@ import TargetModal from './modals/TargetModal';
 import PaymentModal from './modals/PaymentModal';
 import ReactionModal from './modals/ReactionModal';
 import DualUseModal from './modals/DualUseModal';
+import ColorSelectionModal from './modals/ColorSelectionModal';
+import PropertySelectionModal from './modals/PropertySelectionModal';
+import RentColorSelectionModal from './modals/RentColorSelectionModal';
+import BuildingPlacementModal from './modals/BuildingPlacementModal';
+import CompletedSetSelectionModal from './modals/CompletedSetSelectionModal';
+import VictoryModal from './modals/VictoryModal';
 
 const GameBoard: React.FC = () => {
   const {
@@ -23,7 +29,19 @@ const GameBoard: React.FC = () => {
     targetModalData,
     paymentModalData,
     reactionModalData,
-    dualUseModalData
+    dualUseModalData,
+    colorSelectionModalData,
+    propertySelectionModalData,
+    rentColorModalData,
+    buildingPlacementModalData,
+    completedSetSelectionModalData,
+    closeColorSelectionModal,
+    closePropertySelectionModal,
+    closeRentColorModal,
+    closeBuildingPlacementModal,
+    closeCompletedSetSelectionModal,
+    selectTarget,
+    playCard
   } = useGame();
 
   const [playerName, setPlayerName] = useState('');
@@ -53,37 +71,63 @@ const GameBoard: React.FC = () => {
   if (!hasJoined || !gameState) {
     return (
       <div className="join-screen">
+        {/* Main login modal */}
         <div className="join-container">
-          <h1>Monopoly Deal</h1>
-          <div className="join-form">
-            <input
-              type="text"
-              placeholder="Enter your name"
-              value={playerName}
-              onChange={(e) => setPlayerName(e.target.value)}
-              onKeyPress={(e) => {
-                if (e.key === 'Enter' && playerName.trim()) {
-                  joinGame(playerName.trim());
-                  setHasJoined(true);
-                }
-              }}
-              autoFocus
-            />
-            <button
-              onClick={() => {
-                if (playerName.trim()) {
-                  joinGame(playerName.trim());
-                  setHasJoined(true);
-                }
-              }}
-              disabled={!playerName.trim()}
-            >
-              Join Game
-            </button>
+          <div className="join-modal">
+            <div className="star-decoration">⭐</div>
+            <h1 className="game-title">
+              <span className="title-monopoly">Monopoly</span>
+              <span className="title-deal">Deal</span>
+            </h1>
+            <div className="join-form">
+              <input
+                type="text"
+                className="name-input"
+                placeholder="Enter your name"
+                value={playerName}
+                onChange={(e) => setPlayerName(e.target.value)}
+                onKeyPress={(e) => {
+                  if (e.key === 'Enter' && playerName.trim()) {
+                    joinGame(playerName.trim());
+                    setHasJoined(true);
+                  }
+                }}
+                autoFocus
+              />
+              <button
+                className="join-button"
+                onClick={() => {
+                  if (playerName.trim()) {
+                    joinGame(playerName.trim());
+                    setHasJoined(true);
+                  }
+                }}
+                disabled={!playerName.trim()}
+              >
+                <span className="button-icon">▶</span>
+                <span className="button-text">JOIN GAME</span>
+              </button>
+            </div>
+            <div className="waiting-text">
+              <span className="players-icon">👥</span>
+              <span>Waiting for 2-5 players to join...</span>
+            </div>
           </div>
-          <p className="join-info">
-            Waiting for 2-5 players to join...
-          </p>
+
+          {/* IBM BOB branding footer */}
+          <div className="branding-footer">
+            <div className="branding-content">
+              <span className="code-icon">{'< />'}</span>
+              <div className="powered-by">
+                <span className="powered-text">POWERED BY</span>
+                <span className="ibm-bob-logo">IBM BOB</span>
+              </div>
+            </div>
+            <div className="credits">
+              <div className="credit-line">DEVELOPED IN IBM BOB HACK 2026</div>
+              <div className="credit-line thanks">THANKS TO IBM.......</div>
+            </div>
+          </div>
         </div>
       </div>
     );
@@ -208,6 +252,77 @@ const GameBoard: React.FC = () => {
       {paymentModalData && <PaymentModal data={paymentModalData} />}
       {reactionModalData && <ReactionModal data={reactionModalData} />}
       {dualUseModalData && <DualUseModal card={dualUseModalData.card} />}
+      {colorSelectionModalData && (
+        <ColorSelectionModal
+          card={colorSelectionModalData.card}
+          onSelectColor={(color) => {
+            colorSelectionModalData.onSelect(color);
+            closeColorSelectionModal();
+          }}
+          onCancel={closeColorSelectionModal}
+        />
+      )}
+      {propertySelectionModalData && (
+        <PropertySelectionModal
+          title="Force Deal"
+          description="Select properties to swap"
+          myProperties={propertySelectionModalData.myProperties}
+          theirProperties={propertySelectionModalData.theirProperties}
+          onComplete={(myPropertyId, theirPropertyId) => {
+            selectTarget({
+              targetPlayerId: propertySelectionModalData.targetPlayerId,
+              myPropertyCardId: myPropertyId,
+              theirPropertyCardId: theirPropertyId
+            });
+            closePropertySelectionModal();
+          }}
+          onCancel={closePropertySelectionModal}
+        />
+      )}
+      {rentColorModalData && (
+        <RentColorSelectionModal
+          card={rentColorModalData.card}
+          availableColors={rentColorModalData.availableColors}
+          isWildRent={rentColorModalData.isWildRent}
+          opponents={gameState?.players.filter(p => p.id !== playerId).map(p => ({ id: p.id, name: p.name })) || []}
+          onSelectColor={(color, targetPlayerId) => {
+            playCard(rentColorModalData.card.id, {
+              selectedColor: color,
+              targetPlayerId: targetPlayerId
+            });
+            closeRentColorModal();
+          }}
+          onCancel={closeRentColorModal}
+        />
+      )}
+      {buildingPlacementModalData && (
+        <BuildingPlacementModal
+          card={buildingPlacementModalData.card}
+          completedSets={buildingPlacementModalData.completedSets}
+          properties={buildingPlacementModalData.properties}
+          onConfirm={(propertyColor) => {
+            playCard(buildingPlacementModalData.card.id, {
+              area: 'action',
+              propertyColor: propertyColor
+            });
+            closeBuildingPlacementModal();
+          }}
+          onCancel={closeBuildingPlacementModal}
+        />
+      )}
+      {completedSetSelectionModalData && (
+        <CompletedSetSelectionModal
+          targetPlayerId={completedSetSelectionModalData.targetPlayerId}
+          completedSets={completedSetSelectionModalData.completedSets}
+          onClose={closeCompletedSetSelectionModal}
+        />
+      )}
+      {gameState.winner && (
+        <VictoryModal
+          winnerName={gameState.winner.name}
+          onClose={() => window.location.reload()}
+        />
+      )}
     </div>
   );
 };
