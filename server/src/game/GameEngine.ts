@@ -125,14 +125,19 @@ export class GameEngine {
    */
   processAction(action: PlayerAction): ActionResult {
     try {
-      // Validate it's the player's turn
-      const currentPlayer = this.gameState.getCurrentPlayer();
-      if (action.playerId !== currentPlayer.id) {
-        return {
-          success: false,
-          message: 'Not your turn',
-          error: 'NOT_YOUR_TURN'
-        };
+      // RESPOND actions don't require turn validation (reactions happen during opponent's turn)
+      const requiresTurnValidation = action.type !== 'RESPOND';
+      
+      if (requiresTurnValidation) {
+        // Validate it's the player's turn
+        const currentPlayer = this.gameState.getCurrentPlayer();
+        if (action.playerId !== currentPlayer.id) {
+          return {
+            success: false,
+            message: 'Not your turn',
+            error: 'NOT_YOUR_TURN'
+          };
+        }
       }
  
       // Process action based on type
@@ -263,15 +268,23 @@ export class GameEngine {
  
     try {
       const pendingAction = this.gameState.pendingAction;
+      const responseData = action.data as any;
  
-      if (pendingAction.type === 'PAYMENT') {
-        // Handle payment submission
-        const paymentData = action.data as PaymentData;
-        this.paymentHandler.processPayment(this.gameState, action.playerId, paymentData.cardIds);
-      } else if (pendingAction.type === 'REACTION') {
-        // Handle Just Say No response
-        const reactionData = action.data as ReactionData;
+      // Check if this is a reaction response (has useJustSayNo field)
+      if ('useJustSayNo' in responseData) {
+        // Handle Just Say No response (reaction to an action)
+        const reactionData = responseData as ReactionData;
         this.reactionHandler.handleReaction(this.gameState, action.playerId, reactionData);
+      } else if ('cardIds' in responseData) {
+        // Handle payment submission
+        const paymentData = responseData as PaymentData;
+        this.paymentHandler.processPayment(this.gameState, action.playerId, paymentData.cardIds);
+      } else {
+        return {
+          success: false,
+          message: 'Invalid response data - must include either useJustSayNo or cardIds',
+          error: 'INVALID_RESPONSE_DATA'
+        };
       }
  
       return {
@@ -472,6 +485,12 @@ export class GameEngine {
       return;
     }
 
+    // Remove card from hand before executing
+    const cardIndex = player.hand.findIndex(c => c.id === card.id);
+    if (cardIndex !== -1) {
+      player.hand.splice(cardIndex, 1);
+    }
+
     // Execute the action with the handler
     handler.execute(this.gameState, player.id, card, placement);
   }
@@ -488,6 +507,12 @@ export class GameEngine {
       throw new Error('Cannot execute rent - no matching properties');
     }
  
+    // Remove card from hand before executing
+    const cardIndex = player.hand.findIndex(c => c.id === card.id);
+    if (cardIndex !== -1) {
+      player.hand.splice(cardIndex, 1);
+    }
+
     // Execute rent collection
     this.rentHandler.execute(this.gameState, player.id, card, placement as RentData);
   }
@@ -555,9 +580,15 @@ export class GameEngine {
       // Execute the action with complete data
       handler.execute(this.gameState, player.id, card, completeData);
 
-      // Clear pending action and return to playing phase
-      this.gameState.pendingAction = null;
-      this.gameState.phase = GamePhase.PLAYING;
+      // Check if handler set up a reaction phase (e.g., Deal Breaker)
+      // If so, don't clear pendingAction or reset phase
+      // Note: handler.execute() may change gameState.phase to AWAITING_REACTION
+      const currentPhase = this.gameState.phase as string;
+      if (currentPhase !== 'AWAITING_REACTION') {
+        // Clear pending action and return to playing phase for actions that complete immediately
+        this.gameState.pendingAction = null;
+        this.gameState.phase = GamePhase.PLAYING;
+      }
 
       return {
         success: true,

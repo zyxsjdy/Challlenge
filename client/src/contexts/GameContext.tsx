@@ -1,5 +1,5 @@
 import React, { createContext, useContext, useEffect, useState, ReactNode } from 'react';
-import { SanitizedGameState, Card } from 'shared/types';
+import { SanitizedGameState, Card, ActionCard } from 'shared/types';
 import {
   ActionRequiresTargetPayload,
   PaymentRequiredPayload,
@@ -19,6 +19,26 @@ interface GameContextType {
   paymentModalData: PaymentRequiredPayload | null;
   reactionModalData: ReactionPromptPayload | null;
   dualUseModalData: { card: Card } | null;
+  colorSelectionModalData: { card: Card; onSelect: (color: PropertyColor) => void } | null;
+  propertySelectionModalData: {
+    targetPlayerId: string;
+    myProperties: Record<PropertyColor, Card[]>;
+    theirProperties: Record<PropertyColor, Card[]>;
+  } | null;
+  rentColorModalData: {
+    card: Card;
+    availableColors: PropertyColor[];
+    isWildRent: boolean;
+  } | null;
+  buildingPlacementModalData: {
+    card: ActionCard;
+    completedSets: PropertyColor[];
+    properties: Record<PropertyColor, Card[]>;
+  } | null;
+  completedSetSelectionModalData: {
+    targetPlayerId: string;
+    completedSets: PropertyColor[];
+  } | null;
   
   // Actions
   joinGame: (playerName: string) => void;
@@ -30,6 +50,7 @@ interface GameContextType {
   drawCards: () => void;
   endTurn: () => void;
   discardCards: (cardIds: string[]) => void;
+  swapWildcardColor: (cardId: string, newColor: PropertyColor) => void;
   
   // Modal controls
   closeTargetModal: () => void;
@@ -37,6 +58,16 @@ interface GameContextType {
   closeReactionModal: () => void;
   closeDualUseModal: () => void;
   showDualUseModal: (card: Card) => void;
+  closeColorSelectionModal: () => void;
+  showColorSelectionModal: (card: Card, onSelect: (color: PropertyColor) => void) => void;
+  closePropertySelectionModal: () => void;
+  showPropertySelectionModal: (targetPlayerId: string, myProps: Record<PropertyColor, Card[]>, theirProps: Record<PropertyColor, Card[]>) => void;
+  closeRentColorModal: () => void;
+  showRentColorModal: (card: Card, availableColors: PropertyColor[], isWildRent: boolean) => void;
+  closeBuildingPlacementModal: () => void;
+  showBuildingPlacementModal: (card: ActionCard, completedSets: PropertyColor[], properties: Record<PropertyColor, Card[]>) => void;
+  closeCompletedSetSelectionModal: () => void;
+  showCompletedSetSelectionModal: (targetPlayerId: string, completedSets: PropertyColor[]) => void;
   
   // Toast notifications
   showToast: (message: string, type: 'success' | 'error' | 'info') => void;
@@ -70,6 +101,26 @@ export const GameProvider: React.FC<GameProviderProps> = ({
   const [paymentModalData, setPaymentModalData] = useState<PaymentRequiredPayload | null>(null);
   const [reactionModalData, setReactionModalData] = useState<ReactionPromptPayload | null>(null);
   const [dualUseModalData, setDualUseModalData] = useState<{ card: Card } | null>(null);
+  const [colorSelectionModalData, setColorSelectionModalData] = useState<{ card: Card; onSelect: (color: PropertyColor) => void } | null>(null);
+  const [propertySelectionModalData, setPropertySelectionModalData] = useState<{
+    targetPlayerId: string;
+    myProperties: Record<PropertyColor, Card[]>;
+    theirProperties: Record<PropertyColor, Card[]>;
+  } | null>(null);
+  const [rentColorModalData, setRentColorModalData] = useState<{
+    card: Card;
+    availableColors: PropertyColor[];
+    isWildRent: boolean;
+  } | null>(null);
+  const [buildingPlacementModalData, setBuildingPlacementModalData] = useState<{
+    card: ActionCard;
+    completedSets: PropertyColor[];
+    properties: Record<PropertyColor, Card[]>;
+  } | null>(null);
+  const [completedSetSelectionModalData, setCompletedSetSelectionModalData] = useState<{
+    targetPlayerId: string;
+    completedSets: PropertyColor[];
+  } | null>(null);
   
   // Toast state
   const [toasts, setToasts] = useState<Array<{ id: number; message: string; type: string }>>([]);
@@ -206,12 +257,74 @@ export const GameProvider: React.FC<GameProviderProps> = ({
     socketService.discardCards(cardIds);
   };
   
+  const swapWildcardColor = (cardId: string, newColor: PropertyColor) => {
+    // Find the card's current color in player's properties
+    if (!gameState || !playerId) return;
+    
+    const myPlayer = gameState.players.find(p => p.id === playerId);
+    if (!myPlayer) return;
+    
+    // Find which color set the card is currently in
+    let currentColor: PropertyColor | null = null;
+    for (const [color, cards] of Object.entries(myPlayer.properties)) {
+      if (cards.some(c => c.id === cardId)) {
+        currentColor = color as PropertyColor;
+        break;
+      }
+    }
+    
+    if (!currentColor) {
+      console.error('Card not found in any property set');
+      return;
+    }
+    
+    // Use move_wildcard event to swap colors
+    socketService.moveWildcard(cardId, currentColor, newColor);
+  };
+  
   // Modal controls
   const closeTargetModal = () => setTargetModalData(null);
   const closePaymentModal = () => setPaymentModalData(null);
   const closeReactionModal = () => setReactionModalData(null);
   const closeDualUseModal = () => setDualUseModalData(null);
   const showDualUseModal = (card: Card) => setDualUseModalData({ card });
+  
+  const closeColorSelectionModal = () => setColorSelectionModalData(null);
+  const showColorSelectionModal = (card: Card, onSelect: (color: PropertyColor) => void) => {
+    setColorSelectionModalData({ card, onSelect });
+  };
+  
+  const closePropertySelectionModal = () => setPropertySelectionModalData(null);
+  const showPropertySelectionModal = (
+    targetPlayerId: string,
+    myProps: Record<PropertyColor, Card[]>,
+    theirProps: Record<PropertyColor, Card[]>
+  ) => {
+    setPropertySelectionModalData({
+      targetPlayerId,
+      myProperties: myProps,
+      theirProperties: theirProps
+    });
+  };
+  
+  const closeRentColorModal = () => setRentColorModalData(null);
+  const showRentColorModal = (card: Card, availableColors: PropertyColor[], isWildRent: boolean) => {
+    setRentColorModalData({ card, availableColors, isWildRent });
+  };
+  
+  const closeBuildingPlacementModal = () => setBuildingPlacementModalData(null);
+  const showBuildingPlacementModal = (
+    card: ActionCard,
+    completedSets: PropertyColor[],
+    properties: Record<PropertyColor, Card[]>
+  ) => {
+    setBuildingPlacementModalData({ card, completedSets, properties });
+  };
+  
+  const closeCompletedSetSelectionModal = () => setCompletedSetSelectionModalData(null);
+  const showCompletedSetSelectionModal = (targetPlayerId: string, completedSets: PropertyColor[]) => {
+    setCompletedSetSelectionModalData({ targetPlayerId, completedSets });
+  };
   
   // Toast notifications
   const showToast = (message: string, type: 'success' | 'error' | 'info') => {
@@ -232,6 +345,11 @@ export const GameProvider: React.FC<GameProviderProps> = ({
     paymentModalData,
     reactionModalData,
     dualUseModalData,
+    colorSelectionModalData,
+    propertySelectionModalData,
+    rentColorModalData,
+    buildingPlacementModalData,
+    completedSetSelectionModalData,
     joinGame,
     startGame,
     playCard,
@@ -241,11 +359,22 @@ export const GameProvider: React.FC<GameProviderProps> = ({
     drawCards,
     endTurn,
     discardCards,
+    swapWildcardColor,
     closeTargetModal,
     closePaymentModal,
     closeReactionModal,
     closeDualUseModal,
     showDualUseModal,
+    closeColorSelectionModal,
+    showColorSelectionModal,
+    closePropertySelectionModal,
+    showPropertySelectionModal,
+    closeRentColorModal,
+    showRentColorModal,
+    closeBuildingPlacementModal,
+    showBuildingPlacementModal,
+    closeCompletedSetSelectionModal,
+    showCompletedSetSelectionModal,
     showToast
   };
   

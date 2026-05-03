@@ -198,7 +198,8 @@ class SocketService {
       console.error('Socket not connected');
       return;
     }
-    this.socket.emit('submit_payment', { cardIds });
+    console.log(`[SocketService] Emitting select_payment with cardIds:`, cardIds);
+    this.socket.emit('select_payment', { cardIds });
   }
 
   respondToAction(response: 'accept' | 'counter'): void {
@@ -206,7 +207,11 @@ class SocketService {
       console.error('Socket not connected');
       return;
     }
-    this.socket.emit('respond_to_action', { response });
+    console.log(`[SocketService] Emitting react_to_action with response: ${response}`);
+    this.socket.emit('react_to_action', {
+      useJustSayNo: response === 'counter',
+      justSayNoCardId: undefined // Will be handled by server finding the card
+    });
   }
 
   drawCards(): void {
@@ -231,6 +236,14 @@ class SocketService {
       return;
     }
     this.socket.emit('discard_cards', { cardIds });
+  }
+
+  moveWildcard(cardId: string, fromColor: string, toColor: string): void {
+    if (!this.socket) {
+      console.error('Socket not connected');
+      return;
+    }
+    this.socket.emit('move_wildcard', { cardId, fromColor, toColor });
   }
 
   getSocketId(): string | undefined {

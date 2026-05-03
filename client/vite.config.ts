@@ -6,7 +6,11 @@ export default defineConfig({
   plugins: [react()],
   resolve: {
     alias: {
-      'shared': path.resolve(__dirname, '../shared/src')
+      'shared': path.resolve(__dirname, '../shared/src'),
+      'shared/enums': path.resolve(__dirname, '../shared/src/enums.ts'),
+      'shared/types': path.resolve(__dirname, '../shared/src/types.ts'),
+      'shared/events': path.resolve(__dirname, '../shared/src/events.ts'),
+      'shared/constants': path.resolve(__dirname, '../shared/src/constants.ts')
     }
   },
   server: {

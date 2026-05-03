@@ -18,19 +18,33 @@ export class PaymentHandler {
    * Sets game to AWAITING_PAYMENT phase
    */
   requestPayment(gameState: GameState, payerId: string, amount: number, initiatorId: string): void {
+    console.log(`[PaymentHandler.requestPayment] Called with payerId: ${payerId}, amount: ${amount}, initiatorId: ${initiatorId}`);
     const payer = this.getPlayer(gameState, payerId);
 
     // Check if player can pay
     const payableCards = this.getPayableCards(payer);
     const totalAvailable = payableCards.reduce((sum, card) => sum + card.monetaryValue, 0);
+    console.log(`[PaymentHandler.requestPayment] Player has $${totalAvailable}M available to pay`);
 
     if (totalAvailable === 0) {
+      console.log(`[PaymentHandler.requestPayment] Player has nothing to pay with`);
       // Player has nothing to pay with - payment automatically fails
-      gameState.phase = GamePhase.PLAYING;
-      gameState.pendingAction = null;
+      // Check if there are remaining targets (for multi-target actions like Birthday)
+      const remainingTargets = (gameState.pendingAction as any)?.remainingTargets;
+      if (remainingTargets && remainingTargets.length > 0) {
+        // Process next target
+        const nextTarget = remainingTargets.shift();
+        this.requestPayment(gameState, nextTarget, amount, initiatorId);
+        (gameState.pendingAction as any).remainingTargets = remainingTargets;
+      } else {
+        // No more targets - clear pending action and return to playing phase
+        gameState.phase = GamePhase.PLAYING;
+        gameState.pendingAction = null;
+      }
       return;
     }
 
+    console.log(`[PaymentHandler.requestPayment] Setting phase to AWAITING_PAYMENT`);
     gameState.phase = GamePhase.AWAITING_PAYMENT;
     gameState.pendingAction = {
       type: 'PAYMENT',
@@ -38,6 +52,7 @@ export class PaymentHandler {
       targetId: payerId,
       amount: amount
     };
+    console.log(`[PaymentHandler.requestPayment] Phase set to: ${gameState.phase}, pendingAction:`, gameState.pendingAction);
   }
 
   /**
@@ -88,17 +103,26 @@ export class PaymentHandler {
       this.addCardToRecipient(recipient, card);
     }
 
-    // Clear pending action and return to playing phase
-    gameState.phase = GamePhase.PLAYING;
-    gameState.pendingAction = null;
-
     // Check if there are remaining targets (for multi-target actions like Birthday)
     const remainingTargets = (gameState.pendingAction as any)?.remainingTargets;
     if (remainingTargets && remainingTargets.length > 0) {
       // Process next target
       const nextTarget = remainingTargets.shift();
-      this.requestPayment(gameState, nextTarget, requiredAmount, recipientId);
+      
+      // Set up reaction phase for next target
+      gameState.phase = GamePhase.AWAITING_REACTION;
+      gameState.pendingAction = {
+        type: 'PAYMENT',
+        initiatorId: recipientId,
+        targetId: nextTarget,
+        amount: requiredAmount,
+        canBeCountered: true
+      };
       (gameState.pendingAction as any).remainingTargets = remainingTargets;
+    } else {
+      // No more targets - clear pending action and return to playing phase
+      gameState.phase = GamePhase.PLAYING;
+      gameState.pendingAction = null;
     }
   }
 

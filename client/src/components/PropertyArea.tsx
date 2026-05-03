@@ -11,7 +11,7 @@ interface PropertyAreaProps {
 }
 
 const PropertyArea: React.FC<PropertyAreaProps> = ({ properties, isMyTurn }) => {
-  const { playCard } = useGame();
+  const { playCard, showColorSelectionModal, swapWildcardColor } = useGame();
   const [dragOverColor, setDragOverColor] = useState<PropertyColor | null>(null);
   const getSetSize = (color: PropertyColor): number => {
     return GAME_CONSTANTS.PROPERTY_SET_SIZES[color] || 0;
@@ -103,11 +103,25 @@ const PropertyArea: React.FC<PropertyAreaProps> = ({ properties, isMyTurn }) => 
               <div className="property-cards">
                 {cards.length > 0 ? (
                   cards.map((card: Card) => (
-                    <CardComponent
-                      key={card.id}
-                      card={card}
-                      draggable={isMyTurn && card.category === 'PROPERTY_WILDCARD'}
-                    />
+                    <div key={card.id} className="property-card-wrapper">
+                      <CardComponent
+                        card={card}
+                        draggable={isMyTurn && card.category === 'PROPERTY_WILDCARD'}
+                      />
+                      {isMyTurn && card.category === 'PROPERTY_WILDCARD' && (
+                        <button
+                          className="swap-color-button"
+                          onClick={() => {
+                            showColorSelectionModal(card, (newColor: PropertyColor) => {
+                              swapWildcardColor(card.id, newColor);
+                            });
+                          }}
+                          title="Change wildcard color"
+                        >
+                          🔄
+                        </button>
+                      )}
+                    </div>
                   ))
                 ) : (
                   <div className="empty-set-placeholder">Drop property here</div>

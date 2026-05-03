@@ -22,7 +22,8 @@ export interface JoinGamePayload {
  */
 export interface PlayCardPayload {
   cardId: string;
-  targetColor?: PropertyColor; // For property/wildcard placement
+  targetColor?: PropertyColor; // For property/wildcard placement (legacy)
+  placement?: any; // Full placement data including color, area, selectedColor, targetPlayerId, etc.
 }
 
 /**

@@ -103,9 +103,11 @@ export class ReactionHandler {
     }
 
     const action = gameState.pendingAction;
+    console.log(`[ReactionHandler.resolveAction] Resolving action type: ${action.type}`);
 
     switch (action.type) {
       case 'PAYMENT':
+        console.log(`[ReactionHandler.resolveAction] Calling paymentHandler.requestPayment for targetId: ${action.targetId}, amount: ${action.amount}`);
         // Request payment from target
         this.paymentHandler.requestPayment(
           gameState,
@@ -113,6 +115,7 @@ export class ReactionHandler {
           action.amount!,
           action.initiatorId
         );
+        console.log(`[ReactionHandler.resolveAction] After requestPayment, phase: ${gameState.phase}`);
         break;
 
       case 'REACTION':

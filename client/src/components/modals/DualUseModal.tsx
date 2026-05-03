@@ -1,5 +1,6 @@
 import React from 'react';
-import { Card } from 'shared/types';
+import { Card, ActionCard } from 'shared/types';
+import { ActionType } from 'shared/enums';
 import { useGame } from '../../contexts/GameContext';
 
 interface DualUseModalProps {
@@ -7,15 +8,28 @@ interface DualUseModalProps {
 }
 
 const DualUseModal: React.FC<DualUseModalProps> = ({ card }) => {
-  const { playCard, closeDualUseModal } = useGame();
+  const { playCard, closeDualUseModal, showBuildingPlacementModal, gameState, playerId } = useGame();
 
   const handlePlayAsAction = () => {
+    const actionCard = card as ActionCard;
+    
+    // Special handling for House/Hotel cards - show building placement modal
+    if (actionCard.actionType === ActionType.HOUSE || actionCard.actionType === ActionType.HOTEL) {
+      const myPlayer = gameState?.players.find(p => p.id === playerId);
+      if (myPlayer) {
+        closeDualUseModal();
+        showBuildingPlacementModal(actionCard, myPlayer.completedSets, myPlayer.properties);
+      }
+      return;
+    }
+    
+    // For other action cards, play directly
     playCard(card.id, { area: 'action' });
     closeDualUseModal();
   };
 
   const handleBankAsCash = () => {
-    playCard(card.id, { area: 'bank' });
+    playCard(card.id, { area: 'bank', useAsBank: true });
     closeDualUseModal();
   };
 

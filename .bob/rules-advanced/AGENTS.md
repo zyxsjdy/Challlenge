@@ -65,8 +65,13 @@
 - [`GameContext`](../../client/src/contexts/GameContext.tsx:1) is single source of truth - all components use `useGame()` hook
 - Drag data MUST include both `cardId` and `cardCategory` for drop zone validation to work
 - Modal state managed in GameContext, triggered by server events (not component local state)
-- Server URL hardcoded in [`App.tsx`](../../client/src/App.tsx:1) - must change for production
+- Server URL hardcoded in [`App.tsx`](../../client/src/App.tsx:1) to port 3001 - change for production
 - Drop zones validate card category before accepting drops (bank vs property areas)
+
+### Vite Import Resolution (Critical)
+- Shared package requires explicit aliases in vite.config.ts for each module file (enums, types, events, constants)
+- Generic alias `'shared': path.resolve(__dirname, '../shared/src')` does NOT work
+- Must add individual aliases: `'shared/enums'`, `'shared/types'`, `'shared/events'`, `'shared/constants'`
 
 ## Mode Capabilities
 - **Full access to**: MCP tools, Browser tools

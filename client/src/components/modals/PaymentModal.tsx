@@ -18,7 +18,7 @@ const PaymentModal: React.FC<PaymentModalProps> = ({ data }) => {
   // Get all cards that can be used for payment (bank + properties, excluding 10-color wildcard)
   const availableCards: Card[] = [
     ...localPlayer.bank,
-    ...Array.from(localPlayer.properties.values()).flat()
+    ...Object.values(localPlayer.properties).flat()
   ].filter(card => {
     // Exclude 10-color wildcard (value is 0)
     return card.monetaryValue > 0;

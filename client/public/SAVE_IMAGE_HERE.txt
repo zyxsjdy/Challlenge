@@ -1,0 +1,21 @@
+╔══════════════════════════════════════════════════════════════╗
+║                  BACKGROUND IMAGE INSTRUCTIONS                ║
+╚══════════════════════════════════════════════════════════════╝
+
+📸 SAVE THE BACKGROUND IMAGE HERE!
+
+1. Right-click on the Monopoly Deal town street image from the chat
+2. Save it as: login-background.jpg
+3. Place it in this directory: client/public/
+4. The full path should be: client/public/login-background.jpg
+
+✅ Once saved, the login page will automatically display the image!
+
+The image shows:
+- 3D rendered European town street
+- Pastel-colored buildings (yellows, oranges, browns)
+- Red and white striped awnings
+- Blue sky background
+- Charming street scene
+
+🔄 No server restart needed - just refresh the browser!
