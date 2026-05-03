@@ -1,5 +1,5 @@
 # Submission details
-Close
+Submission details for the IBM Bob Dev Day Hackathon
 
 ## Submission date
 2026-05-03T10:11:31
